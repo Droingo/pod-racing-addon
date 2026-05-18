@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "aerowind:block/rigid_link_mount"
+    }
+  }
+}

@@ -10,6 +10,9 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.droingo.aerowind.block.WindProjectorBlock;
+import net.droingo.aerowind.block.SealedPontoonBlock;
+import net.droingo.aerowind.block.RigidLinkMountBlock;
+import net.droingo.aerowind.item.RigidLinkRodItem;
 
 public final class AeroWindBlocks {
     public static final DeferredRegister.Blocks BLOCKS =
@@ -17,6 +20,9 @@ public final class AeroWindBlocks {
 
     public static final DeferredRegister.Items ITEMS =
             DeferredRegister.createItems(AeroWind.MOD_ID);
+
+    public static final DeferredItem<RigidLinkRodItem> RIGID_LINK_ROD =
+            ITEMS.register("rigid_link_rod", () -> new RigidLinkRodItem(new Item.Properties()));
 
     public static final DeferredBlock<Block> WIND_PROJECTOR = BLOCKS.register(
             "wind_projector",
@@ -28,9 +34,20 @@ public final class AeroWindBlocks {
                             .requiresCorrectToolForDrops()
             )
     );
+    public static final DeferredBlock<SealedPontoonBlock> SEALED_PONTOON =
+            BLOCKS.register("sealed_pontoon", SealedPontoonBlock::new);
+
+    public static final DeferredBlock<RigidLinkMountBlock> RIGID_LINK_MOUNT =
+            BLOCKS.register("rigid_link_mount", RigidLinkMountBlock::new);
 
     public static final DeferredItem<BlockItem> WIND_PROJECTOR_ITEM =
             ITEMS.registerSimpleBlockItem(WIND_PROJECTOR, new Item.Properties());
+
+    public static final DeferredItem<BlockItem> RIGID_LINK_MOUNT_ITEM =
+            ITEMS.registerSimpleBlockItem(AeroWindBlocks.RIGID_LINK_MOUNT);
+
+    public static final DeferredItem<BlockItem> SEALED_PONTOON_ITEM =
+            ITEMS.registerSimpleBlockItem(AeroWindBlocks.SEALED_PONTOON);
 
     private AeroWindBlocks() {
     }

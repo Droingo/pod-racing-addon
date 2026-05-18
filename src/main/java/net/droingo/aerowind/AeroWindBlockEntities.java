@@ -1,5 +1,6 @@
 package net.droingo.aerowind;
 
+import net.droingo.aerowind.blockentity.SealedPontoonBlockEntity;
 import net.droingo.aerowind.blockentity.WindProjectorBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -18,6 +19,14 @@ public final class AeroWindBlockEntities {
                     () -> BlockEntityType.Builder.of(
                             WindProjectorBlockEntity::new,
                             AeroWindBlocks.WIND_PROJECTOR.get()
+                    ).build(null)
+            );
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SealedPontoonBlockEntity>> SEALED_PONTOON =
+            BLOCK_ENTITIES.register("sealed_pontoon", () ->
+                    BlockEntityType.Builder.of(
+                            SealedPontoonBlockEntity::new,
+                            AeroWindBlocks.SEALED_PONTOON.get()
                     ).build(null)
             );
 
