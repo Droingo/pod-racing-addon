@@ -1,5 +1,6 @@
 package net.droingo.aerowind;
 
+import net.droingo.aerowind.block.TrophyBlock;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
@@ -34,8 +35,20 @@ public final class AeroWindBlocks {
                             .requiresCorrectToolForDrops()
             )
     );
+    public static final DeferredBlock TROPHY = BLOCKS.register(
+            "trophy",
+            () -> new TrophyBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.GOLD)
+                            .strength(1.5F, 6.0F)
+                            .sound(SoundType.METAL)
+                            .noOcclusion()
+                            .lightLevel(state -> 5)
+            )
+    );
     public static final DeferredBlock<SealedPontoonBlock> SEALED_PONTOON =
             BLOCKS.register("sealed_pontoon", SealedPontoonBlock::new);
+    public static final DeferredItem TROPHY_ITEM = ITEMS.registerSimpleBlockItem(AeroWindBlocks.TROPHY);
 
     public static final DeferredBlock<RigidLinkMountBlock> RIGID_LINK_MOUNT =
             BLOCKS.register("rigid_link_mount", RigidLinkMountBlock::new);
