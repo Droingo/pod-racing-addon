@@ -35,7 +35,7 @@ public final class AeroWindBlocks {
                             .requiresCorrectToolForDrops()
             )
     );
-    public static final DeferredBlock TROPHY = BLOCKS.register(
+    public static final DeferredBlock<Block> TROPHY = BLOCKS.register(
             "trophy",
             () -> new TrophyBlock(
                     BlockBehaviour.Properties.of()
