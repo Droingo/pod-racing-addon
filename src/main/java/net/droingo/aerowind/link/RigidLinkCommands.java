@@ -36,6 +36,8 @@ public final class RigidLinkCommands {
         int oldCount = savedData.linkCount();
         savedData.clearLinks();
 
+        RigidLinkServerEvents.clearRuntimeConstraints();
+
         source.sendSuccess(
                 () -> Component.literal("Cleared " + oldCount + " AeroWind rigid links in " + level.dimension().location()),
                 true

@@ -46,6 +46,20 @@ public final class RigidLinkServerEvents {
         }
     }
 
+    public static void clearRuntimeConstraints() {
+        for (Map<RigidLinkSavedData.RigidLink, GenericConstraintHandle> levelConstraints : CONSTRAINTS_BY_LEVEL.values()) {
+            for (GenericConstraintHandle handle : levelConstraints.values()) {
+                if (handle.isValid()) {
+                    handle.remove();
+                }
+            }
+
+            levelConstraints.clear();
+        }
+
+        CONSTRAINTS_BY_LEVEL.clear();
+    }
+
     private static void syncConstraintsForLevel(ServerLevel level, boolean shouldDebug) {
         RigidLinkSavedData savedData = RigidLinkSavedData.get(level);
 
@@ -57,18 +71,8 @@ public final class RigidLinkServerEvents {
         levelConstraints.entrySet().removeIf(entry -> {
             boolean shouldRemove = !savedLinks.contains(entry.getKey()) || !entry.getValue().isValid();
 
-            if (shouldRemove) {
+            if (shouldRemove && entry.getValue().isValid()) {
                 entry.getValue().remove();
-
-                if (shouldDebug) {
-                    AeroWind.LOGGER.info(
-                            "Rigid Link native constraint removed: A={} posA={} B={} posB={}",
-                            entry.getKey().subLevelA(),
-                            entry.getKey().posA(),
-                            entry.getKey().subLevelB(),
-                            entry.getKey().posB()
-                    );
-                }
             }
 
             return shouldRemove;
@@ -96,71 +100,33 @@ public final class RigidLinkServerEvents {
             GenericConstraintHandle existingHandle = levelConstraints.get(link);
 
             if (existingHandle != null && existingHandle.isValid()) {
-                if (shouldDebug) {
-                    Vector3d impulseA = new Vector3d();
-                    Vector3d impulseB = new Vector3d();
-                    existingHandle.getJointImpulses(impulseA, impulseB);
-
-                    AeroWind.LOGGER.info(
-                            "Rigid Link native constraint valid: A={} B={} jointImpulseA={} jointImpulseB={}",
-                            link.subLevelA(),
-                            link.subLevelB(),
-                            impulseA,
-                            impulseB
-                    );
-                }
-
                 continue;
             }
 
-            createConstraint(level, physicsSystem, levelConstraints, link, shouldDebug);
+            createBallJointConstraint(level, physicsSystem, levelConstraints, link);
         }
     }
 
-    private static void createConstraint(
+    private static void createBallJointConstraint(
             ServerLevel level,
             SubLevelPhysicsSystem physicsSystem,
             Map<RigidLinkSavedData.RigidLink, GenericConstraintHandle> levelConstraints,
-            RigidLinkSavedData.RigidLink link,
-            boolean shouldDebug
+            RigidLinkSavedData.RigidLink link
     ) {
         ServerSubLevel subLevelA = SableWindAccess.findSubLevelAt(level, link.posA());
         ServerSubLevel subLevelB = SableWindAccess.findSubLevelAt(level, link.posB());
 
         if (subLevelA == null || subLevelB == null) {
-            if (shouldDebug) {
-                AeroWind.LOGGER.warn(
-                        "Rigid Link native constraint skipped: missing sublevel. A={} posA={} foundA={} B={} posB={} foundB={}",
-                        link.subLevelA(),
-                        link.posA(),
-                        subLevelA != null,
-                        link.subLevelB(),
-                        link.posB(),
-                        subLevelB != null
-                );
-            }
             return;
         }
 
         if (!subLevelA.getUniqueId().equals(link.subLevelA()) || !subLevelB.getUniqueId().equals(link.subLevelB())) {
-            if (shouldDebug) {
-                AeroWind.LOGGER.warn(
-                        "Rigid Link native constraint skipped: UUID mismatch. savedA={} foundA={} savedB={} foundB={}",
-                        link.subLevelA(),
-                        subLevelA.getUniqueId(),
-                        link.subLevelB(),
-                        subLevelB.getUniqueId()
-                );
-            }
             return;
         }
 
-        Vector3d frameA = mountCenter(link.posA());
-        Vector3d frameB = mountCenter(link.posB());
-
         GenericConstraintConfiguration configuration = new GenericConstraintConfiguration(
-                frameA,
-                frameB,
+                mountCenter(link.posA()),
+                mountCenter(link.posB()),
                 new Quaterniond(),
                 new Quaterniond(),
                 EnumSet.of(
@@ -184,15 +150,16 @@ public final class RigidLinkServerEvents {
         physicsSystem.getPipeline().wakeUp(subLevelB);
 
         AeroWind.LOGGER.info(
-                "Rigid Link native constraint created: A={} frameA={} B={} frameB={} targetLength={} valid={}",
+                "Rigid Link native ball joint created: A={} posA={} B={} posB={} targetLength={} valid={}",
                 link.subLevelA(),
-                frameA,
+                link.posA(),
                 link.subLevelB(),
-                frameB,
+                link.posB(),
                 link.targetLength(),
                 handle.isValid()
         );
     }
+
 
     private static Vector3d mountCenter(BlockPos pos) {
         return new Vector3d(
