@@ -1,5 +1,6 @@
 package net.droingo.aerowind.blockentity;
 
+import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
 import net.droingo.aerowind.AeroWind;
 import net.droingo.aerowind.AeroWindBlockEntities;
@@ -7,7 +8,6 @@ import net.droingo.aerowind.sable.SableWindAccess;
 import net.droingo.aerowind.wind.WindModel;
 import net.droingo.aerowind.wind.WindSample;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
@@ -15,7 +15,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
-import org.joml.Vector3dc;
 
 public class WindProjectorBlockEntity extends BlockEntity {
     private boolean loggedLevelClass = false;
@@ -34,7 +33,7 @@ public class WindProjectorBlockEntity extends BlockEntity {
             return;
         }
 
-        var subLevel = SableWindAccess.findSubLevelAt(serverLevel, pos);
+        ServerSubLevel subLevel = SableWindAccess.findSubLevelAt(serverLevel, pos);
         if (subLevel == null) {
             return;
         }
@@ -68,8 +67,8 @@ public class WindProjectorBlockEntity extends BlockEntity {
         long layerSeed = serverLevel.getSeed() ^ (heightLayer * 341873128712L);
         RandomSource layerRandom = RandomSource.create(layerSeed);
 
-// Each height layer bends the normal daily wind by up to +/- 45 degrees
-        double layerOffset = (layerRandom.nextDouble() - 0.5) * Math.toRadians(90.0);
+        // Each height layer bends the normal daily wind by up to +/- 45 degrees.
+        double layerOffset = (layerRandom.nextDouble() - 0.5D) * Math.toRadians(90.0D);
 
         double baseAngle = Math.atan2(direction.z, direction.x);
         double finalAngle = baseAngle + layerOffset;
@@ -80,27 +79,23 @@ public class WindProjectorBlockEntity extends BlockEntity {
                 Math.sin(finalAngle)
         ).normalize();
 
-
-
-
-
-        long gustWindow = level.getGameTime() / 20L; // 1 second chunks
+        long gustWindow = level.getGameTime() / 20L; // 1 second chunks.
         long gustSeed = serverLevel.getSeed() ^ subLevel.getUniqueId().getMostSignificantBits() ^ gustWindow;
 
         RandomSource gustRandom = RandomSource.create(gustSeed);
 
-// About 5% chance each second
-        boolean gusting = gustRandom.nextDouble() < 0.05;
+        // About 5% chance each second.
+        boolean gusting = gustRandom.nextDouble() < 0.05D;
 
         Vector3d impulse;
 
         if (gusting) {
-            double angle = gustRandom.nextDouble() * Math.PI * 2.0;
-            double gustStrength = wind.speed() * 4.0;
+            double angle = gustRandom.nextDouble() * Math.PI * 2.0D;
+            double gustStrength = wind.speed() * 4.0D;
 
             impulse = new Vector3d(
                     Math.cos(angle) * gustStrength,
-                    0.0,
+                    0.0D,
                     Math.sin(angle) * gustStrength
             );
         } else {
@@ -111,20 +106,35 @@ public class WindProjectorBlockEntity extends BlockEntity {
             );
         }
 
-        rigidBody.applyLinearImpulse(impulse);
+        Vector3d dragCenter = estimateDragCenter(subLevel);
+
+        rigidBody.applyImpulseAtPoint(dragCenter, impulse);
         physicsSystem.getPipeline().wakeUp(subLevel);
 
         if (level.getGameTime() % 100 == 0) {
             AeroWind.LOGGER.info(
-                    "Wind impulse sublevel={} speed={} direction={} velocity={}",
+                    "Wind impulse at drag center sublevel={} speed={} direction={} dragCenter={} impulse={} velocity={} angularVelocity={}",
                     subLevel.getUniqueId(),
                     wind.speed(),
                     heightDirection,
-                    rigidBody.getLinearVelocity()
+                    dragCenter,
+                    impulse,
+                    rigidBody.getLinearVelocity(new Vector3d()),
+                    rigidBody.getAngularVelocity(new Vector3d())
             );
         }
     }
 
     public static void clientTick(Level level, BlockPos pos, BlockState state, WindProjectorBlockEntity blockEntity) {
+    }
+
+    private static Vector3d estimateDragCenter(ServerSubLevel subLevel) {
+        var bounds = subLevel.getPlot().getBoundingBox();
+
+        return new Vector3d(
+                (bounds.minX() + bounds.maxX() + 1.0D) * 0.5D,
+                (bounds.minY() + bounds.maxY() + 1.0D) * 0.5D,
+                (bounds.minZ() + bounds.maxZ() + 1.0D) * 0.5D
+        );
     }
 }
