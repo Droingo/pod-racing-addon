@@ -1,6 +1,8 @@
 package net.droingo.aerowind.client;
 
 import net.droingo.aerowind.AeroWind;
+import net.droingo.aerowind.wind.WindField;
+import net.droingo.aerowind.wind.WindSample;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.util.RandomSource;
@@ -25,34 +27,14 @@ public final class AeroWindClientEvents {
 
         RandomSource random = minecraft.level.random;
 
-        // More frequent sky wind particles
         if (random.nextFloat() > 0.18F) {
             return;
         }
 
         Vec3 playerPos = minecraft.player.position();
+        WindSample wind = WindField.sampleClientVisual(minecraft.level, playerPos);
+        Vec3 direction = wind.direction();
 
-        long dayTime = minecraft.level.getDayTime();
-
-        // Client-safe visual wind direction.
-        // This should broadly match the server's slow daily wind feel.
-        double baseAngle = (dayTime / 24000.0D) * Math.TAU * 0.35D;
-
-        int layerHeight = 64;
-        int heightLayer = Math.floorDiv((int) playerPos.y, layerHeight);
-
-        // No server seed available client-side, so use a stable visual layer offset.
-        double layerOffset = Math.sin(heightLayer * 12.9898D) * Math.toRadians(45.0D);
-
-        double finalAngle = baseAngle + layerOffset - (Math.PI / 2.0D);
-
-        Vec3 direction = new Vec3(
-                Math.cos(finalAngle),
-                0.04D,
-                Math.sin(finalAngle)
-        ).normalize();
-
-        // Spawn particles ahead/upwind-ish around the player so they streak across view
         double side = (random.nextDouble() - 0.5D) * 60.0D;
         double forward = -30.0D + random.nextDouble() * 20.0D;
 
@@ -62,7 +44,11 @@ public final class AeroWindClientEvents {
         double y = playerPos.y + 10.0D + random.nextDouble() * 24.0D;
         double z = playerPos.z + sideways.z * side + direction.z * forward;
 
-        Vec3 velocity = direction.scale(-0.28D);
+        /*
+         * Particles now travel with the same visual wind direction instead of
+         * being reversed from it.
+         */
+        Vec3 velocity = direction.scale(0.28D);
 
         minecraft.level.addParticle(
                 ParticleTypes.CLOUD,

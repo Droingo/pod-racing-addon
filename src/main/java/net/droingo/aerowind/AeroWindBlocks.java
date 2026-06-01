@@ -12,6 +12,9 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.droingo.aerowind.block.WindProjectorBlock;
 import net.droingo.aerowind.block.SealedPontoonBlock;
+import net.droingo.aerowind.block.RagdollPartBlock;
+import net.droingo.aerowind.block.RagdollPartBlock;
+
 import net.droingo.aerowind.block.RigidLinkMountBlock;
 import net.droingo.aerowind.item.RigidLinkRodItem;
 
@@ -49,7 +52,17 @@ public final class AeroWindBlocks {
     public static final DeferredBlock<SealedPontoonBlock> SEALED_PONTOON =
             BLOCKS.register("sealed_pontoon", SealedPontoonBlock::new);
     public static final DeferredItem TROPHY_ITEM = ITEMS.registerSimpleBlockItem(AeroWindBlocks.TROPHY);
+    public static final DeferredBlock<Block> RAGDOLL_HEAD =
+            BLOCKS.register("ragdoll_head", () -> new RagdollPartBlock(RagdollPartBlock.PartShape.HEAD));
 
+    public static final DeferredBlock<Block> RAGDOLL_TORSO =
+            BLOCKS.register("ragdoll_torso", () -> new RagdollPartBlock(RagdollPartBlock.PartShape.TORSO));
+
+    public static final DeferredBlock<Block> RAGDOLL_ARM =
+            BLOCKS.register("ragdoll_arm", () -> new RagdollPartBlock(RagdollPartBlock.PartShape.ARM));
+
+    public static final DeferredBlock<Block> RAGDOLL_LEG =
+            BLOCKS.register("ragdoll_leg", () -> new RagdollPartBlock(RagdollPartBlock.PartShape.LEG));
     public static final DeferredBlock<RigidLinkMountBlock> RIGID_LINK_MOUNT =
             BLOCKS.register("rigid_link_mount", RigidLinkMountBlock::new);
 
@@ -61,6 +74,18 @@ public final class AeroWindBlocks {
 
     public static final DeferredItem<BlockItem> SEALED_PONTOON_ITEM =
             ITEMS.registerSimpleBlockItem(AeroWindBlocks.SEALED_PONTOON);
+
+    public static final DeferredItem<BlockItem> RAGDOLL_HEAD_ITEM =
+            ITEMS.registerSimpleBlockItem(AeroWindBlocks.RAGDOLL_HEAD);
+
+    public static final DeferredItem<BlockItem> RAGDOLL_TORSO_ITEM =
+            ITEMS.registerSimpleBlockItem(AeroWindBlocks.RAGDOLL_TORSO);
+
+    public static final DeferredItem<BlockItem> RAGDOLL_ARM_ITEM =
+            ITEMS.registerSimpleBlockItem(AeroWindBlocks.RAGDOLL_ARM);
+
+    public static final DeferredItem<BlockItem> RAGDOLL_LEG_ITEM =
+            ITEMS.registerSimpleBlockItem(AeroWindBlocks.RAGDOLL_LEG);
 
     private AeroWindBlocks() {
     }

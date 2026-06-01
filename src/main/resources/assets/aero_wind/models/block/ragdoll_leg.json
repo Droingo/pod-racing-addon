@@ -1,0 +1,21 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "minecraft:block/gray_concrete",
+    "all": "minecraft:block/gray_concrete"
+  },
+  "elements": [
+    {
+      "from": [6, 2, 6],
+      "to": [10, 14, 10],
+      "faces": {
+        "down": { "texture": "#all" },
+        "up": { "texture": "#all" },
+        "north": { "texture": "#all" },
+        "south": { "texture": "#all" },
+        "west": { "texture": "#all" },
+        "east": { "texture": "#all" }
+      }
+    }
+  ]
+}
