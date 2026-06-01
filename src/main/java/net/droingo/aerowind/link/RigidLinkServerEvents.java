@@ -15,6 +15,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -89,7 +90,7 @@ public final class RigidLinkServerEvents {
 
         if (shouldDebug) {
             AeroWind.LOGGER.info(
-                    "Rigid Link native sync: level={}, savedLinks={}, activeConstraints={}",
+                    "AeroWind link sync: level={}, savedLinks={}, activeConstraints={}",
                     level.dimension().location(),
                     savedData.linkCount(),
                     levelConstraints.size()
@@ -103,7 +104,7 @@ public final class RigidLinkServerEvents {
                 continue;
             }
 
-            createBallJointConstraint(level, physicsSystem, levelConstraints, link);
+            createBallJointConstraint(level, physicsSystem, levelConstraints, link, shouldDebug);
         }
     }
 
@@ -111,22 +112,72 @@ public final class RigidLinkServerEvents {
             ServerLevel level,
             SubLevelPhysicsSystem physicsSystem,
             Map<RigidLinkSavedData.RigidLink, GenericConstraintHandle> levelConstraints,
-            RigidLinkSavedData.RigidLink link
+            RigidLinkSavedData.RigidLink link,
+            boolean shouldDebug
     ) {
         ServerSubLevel subLevelA = SableWindAccess.findSubLevelAt(level, link.posA());
         ServerSubLevel subLevelB = SableWindAccess.findSubLevelAt(level, link.posB());
 
         if (subLevelA == null || subLevelB == null) {
+            if (shouldDebug) {
+                AeroWind.LOGGER.info(
+                        "AeroWind link waiting for sublevels: kind={} label={} posA={} foundA={} posB={} foundB={}",
+                        link.linkKind(),
+                        link.label(),
+                        link.posA(),
+                        subLevelA != null,
+                        link.posB(),
+                        subLevelB != null
+                );
+            }
+
             return;
         }
 
-        if (!subLevelA.getUniqueId().equals(link.subLevelA()) || !subLevelB.getUniqueId().equals(link.subLevelB())) {
+        if (subLevelA.getUniqueId().equals(subLevelB.getUniqueId())) {
+            if (shouldDebug) {
+                AeroWind.LOGGER.warn(
+                        "AeroWind link rejected because both ends are same sublevel: kind={} label={} posA={} posB={} subLevel={}",
+                        link.linkKind(),
+                        link.label(),
+                        link.posA(),
+                        link.posB(),
+                        subLevelA.getUniqueId()
+                );
+            }
+
             return;
         }
+
+        boolean isRagdoll = "ragdoll".equalsIgnoreCase(link.linkKind());
+
+        /*
+         * Normal rigid links keep strict UUID validation.
+         * Ragdoll links are allowed to re-detect sublevels by position after reload,
+         * because Sable sublevel UUIDs can change between sessions.
+         */
+        if (!isRagdoll) {
+            if (!subLevelA.getUniqueId().equals(link.subLevelA()) || !subLevelB.getUniqueId().equals(link.subLevelB())) {
+                if (shouldDebug) {
+                    AeroWind.LOGGER.warn(
+                            "Rigid link UUID mismatch: expectedA={} actualA={} expectedB={} actualB={}",
+                            link.subLevelA(),
+                            subLevelA.getUniqueId(),
+                            link.subLevelB(),
+                            subLevelB.getUniqueId()
+                    );
+                }
+
+                return;
+            }
+        }
+
+        Vector3d anchorA = anchorFor(link.posA(), link.anchorOffsetA());
+        Vector3d anchorB = anchorFor(link.posB(), link.anchorOffsetB());
 
         GenericConstraintConfiguration configuration = new GenericConstraintConfiguration(
-                mountCenter(link.posA()),
-                mountCenter(link.posB()),
+                anchorA,
+                anchorB,
                 new Quaterniond(),
                 new Quaterniond(),
                 EnumSet.of(
@@ -142,7 +193,7 @@ public final class RigidLinkServerEvents {
                 configuration
         );
 
-        handle.setContactsEnabled(false);
+        handle.setContactsEnabled(true);
 
         levelConstraints.put(link, handle);
 
@@ -150,22 +201,27 @@ public final class RigidLinkServerEvents {
         physicsSystem.getPipeline().wakeUp(subLevelB);
 
         AeroWind.LOGGER.info(
-                "Rigid Link native ball joint created: A={} posA={} B={} posB={} targetLength={} valid={}",
-                link.subLevelA(),
+                "AeroWind {} joint created: label={} posA={} actualA={} posB={} actualB={} valid={}",
+                link.linkKind(),
+                link.label(),
                 link.posA(),
-                link.subLevelB(),
+                subLevelA.getUniqueId(),
                 link.posB(),
-                link.targetLength(),
+                subLevelB.getUniqueId(),
                 handle.isValid()
         );
     }
 
+    public static void onServerStopping(ServerStoppingEvent event) {
+        clearRuntimeConstraints();
+        AeroWind.LOGGER.info("AeroWind cleared runtime rigid/ragdoll constraints on server stop.");
+    }
 
-    private static Vector3d mountCenter(BlockPos pos) {
+    private static Vector3d anchorFor(BlockPos pos, Vector3d offset) {
         return new Vector3d(
-                pos.getX() + 0.5D,
-                pos.getY() + 0.5D,
-                pos.getZ() + 0.5D
+                pos.getX() + 0.5D + offset.x,
+                pos.getY() + 0.5D + offset.y,
+                pos.getZ() + 0.5D + offset.z
         );
     }
 }

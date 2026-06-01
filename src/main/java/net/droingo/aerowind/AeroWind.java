@@ -22,6 +22,7 @@ public final class AeroWind {
         NeoForge.EVENT_BUS.addListener(RigidLinkServerEvents::onServerTick);
         NeoForge.EVENT_BUS.addListener(RigidLinkCommands::onRegisterCommands);
         NeoForge.EVENT_BUS.addListener(RagdollCommands::onRegisterCommands);
+        NeoForge.EVENT_BUS.addListener(RigidLinkServerEvents::onServerStopping);
 
         LOGGER.info("Aero Wind loaded");
     }

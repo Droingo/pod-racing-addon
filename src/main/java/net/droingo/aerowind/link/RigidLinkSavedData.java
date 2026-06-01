@@ -7,6 +7,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
+import org.joml.Vector3d;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +54,27 @@ public class RigidLinkSavedData extends SavedData {
 
             double targetLength = linkTag.getDouble("TargetLength");
 
-            data.links.add(new RigidLink(subLevelA, posA, subLevelB, posB, targetLength));
+            String linkKind = linkTag.getString("LinkKind");
+            if (linkKind == null || linkKind.isBlank()) {
+                linkKind = "rigid";
+            }
+
+            String label = linkTag.getString("Label");
+
+            Vector3d anchorOffsetA = readVector(linkTag, "AnchorOffsetA");
+            Vector3d anchorOffsetB = readVector(linkTag, "AnchorOffsetB");
+
+            data.links.add(new RigidLink(
+                    subLevelA,
+                    posA,
+                    subLevelB,
+                    posB,
+                    targetLength,
+                    linkKind,
+                    label,
+                    anchorOffsetA,
+                    anchorOffsetB
+            ));
         }
 
         return data;
@@ -78,6 +99,12 @@ public class RigidLinkSavedData extends SavedData {
 
             linkTag.putDouble("TargetLength", link.targetLength());
 
+            linkTag.putString("LinkKind", link.linkKind());
+            linkTag.putString("Label", link.label());
+
+            writeVector(linkTag, "AnchorOffsetA", link.anchorOffsetA());
+            writeVector(linkTag, "AnchorOffsetB", link.anchorOffsetB());
+
             list.add(linkTag);
         }
 
@@ -85,11 +112,52 @@ public class RigidLinkSavedData extends SavedData {
         return tag;
     }
 
-
-
     public void addLink(UUID subLevelA, BlockPos posA, UUID subLevelB, BlockPos posB, double targetLength) {
-        links.add(new RigidLink(subLevelA, posA, subLevelB, posB, targetLength));
-        setDirty();
+        RigidLink link = new RigidLink(
+                subLevelA,
+                posA,
+                subLevelB,
+                posB,
+                targetLength,
+                "rigid",
+                "",
+                new Vector3d(0.0D, 0.0D, 0.0D),
+                new Vector3d(0.0D, 0.0D, 0.0D)
+        );
+
+        if (!links.contains(link)) {
+            links.add(link);
+            setDirty();
+        }
+    }
+
+    public void addRagdollLink(
+            UUID subLevelA,
+            BlockPos posA,
+            UUID subLevelB,
+            BlockPos posB,
+            String label,
+            Vector3d anchorOffsetA,
+            Vector3d anchorOffsetB
+    ) {
+        double targetLength = Math.sqrt(posA.distSqr(posB));
+
+        RigidLink link = new RigidLink(
+                subLevelA,
+                posA,
+                subLevelB,
+                posB,
+                targetLength,
+                "ragdoll",
+                label == null ? "" : label,
+                new Vector3d(anchorOffsetA),
+                new Vector3d(anchorOffsetB)
+        );
+
+        if (!links.contains(link)) {
+            links.add(link);
+            setDirty();
+        }
     }
 
     public void clearLinks() {
@@ -105,12 +173,38 @@ public class RigidLinkSavedData extends SavedData {
         return List.copyOf(links);
     }
 
+    private static void writeVector(CompoundTag tag, String name, Vector3d vector) {
+        CompoundTag vectorTag = new CompoundTag();
+        vectorTag.putDouble("X", vector.x);
+        vectorTag.putDouble("Y", vector.y);
+        vectorTag.putDouble("Z", vector.z);
+        tag.put(name, vectorTag);
+    }
+
+    private static Vector3d readVector(CompoundTag tag, String name) {
+        if (!tag.contains(name, Tag.TAG_COMPOUND)) {
+            return new Vector3d(0.0D, 0.0D, 0.0D);
+        }
+
+        CompoundTag vectorTag = tag.getCompound(name);
+
+        return new Vector3d(
+                vectorTag.getDouble("X"),
+                vectorTag.getDouble("Y"),
+                vectorTag.getDouble("Z")
+        );
+    }
+
     public record RigidLink(
             UUID subLevelA,
             BlockPos posA,
             UUID subLevelB,
             BlockPos posB,
-            double targetLength
+            double targetLength,
+            String linkKind,
+            String label,
+            Vector3d anchorOffsetA,
+            Vector3d anchorOffsetB
     ) {
     }
 }

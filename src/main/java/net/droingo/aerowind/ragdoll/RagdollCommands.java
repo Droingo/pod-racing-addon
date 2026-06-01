@@ -7,13 +7,27 @@ import dev.ryanhcode.sable.api.physics.constraint.generic.GenericConstraintConfi
 import dev.ryanhcode.sable.sublevel.ServerSubLevel;
 import dev.ryanhcode.sable.sublevel.system.SubLevelPhysicsSystem;
 import net.droingo.aerowind.AeroWindBlocks;
+import net.droingo.aerowind.link.RigidLinkSavedData;
 import net.droingo.aerowind.sable.SableWindAccess;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.yggdrasil.ProfileResult;
+import com.mojang.authlib.properties.Property;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.mojang.authlib.GameProfile;
+import net.droingo.aerowind.blockentity.RagdollPartBlockEntity;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
@@ -22,7 +36,9 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import org.joml.Quaterniond;
 import org.joml.Vector3d;
-
+import net.droingo.aerowind.blockentity.RagdollPartBlockEntity;
+import com.mojang.authlib.GameProfile;
+import net.droingo.aerowind.blockentity.RagdollPartBlockEntity;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
@@ -76,6 +92,26 @@ public final class RagdollCommands {
                                 .executes(context -> clearMarks(context.getSource()))
                         )
 
+                        .then(Commands.literal("skin")
+                                .then(Commands.argument("username", StringArgumentType.word())
+                                        .executes(context -> setSkin(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "username")
+                                        ))
+                                )
+                        )
+                        .then(Commands.literal("skinuuid")
+                                .then(Commands.argument("username", StringArgumentType.word())
+                                        .then(Commands.argument("uuid", StringArgumentType.word())
+                                                .executes(context -> setSkinByUuid(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "username"),
+                                                        StringArgumentType.getString(context, "uuid")
+                                                ))
+                                        )
+                                )
+                        )
+
                         .then(Commands.literal("connectmarked")
                                 .executes(context -> connectMarked(context.getSource()))
                         )
@@ -83,11 +119,26 @@ public final class RagdollCommands {
                         .then(Commands.literal("connectnearest")
                                 .executes(context -> connectNearest(context.getSource()))
                         )
+                        .then(Commands.literal("linkcount")
+                                .executes(context -> linkCount(context.getSource()))
+                        )
 
                         .then(Commands.literal("debugnearest")
                                 .executes(context -> debugNearest(context.getSource()))
                         )
         );
+    }
+
+    private static int linkCount(CommandSourceStack source) {
+        ServerLevel level = source.getLevel();
+        RigidLinkSavedData savedData = RigidLinkSavedData.get(level);
+
+        source.sendSuccess(
+                () -> Component.literal("Saved AeroWind links in this level: " + savedData.linkCount()),
+                false
+        );
+
+        return 1;
     }
 
     private static int markPart(CommandSourceStack source, String partName) {
@@ -132,6 +183,10 @@ public final class RagdollCommands {
         );
 
         marks.put(role, pos.immutable());
+
+        if (level.getBlockEntity(pos) instanceof RagdollPartBlockEntity ragdollPart) {
+            ragdollPart.setRagdollRole(role.commandName);
+        }
 
         source.sendSuccess(
                 () -> Component.literal("Marked " + role.commandName + " at " + formatPos(pos) + " in sublevel " + subLevel.getUniqueId()),
@@ -216,6 +271,79 @@ public final class RagdollCommands {
         return 1;
     }
 
+    private static int setSkinByUuid(CommandSourceStack source, String username, String uuidText) {
+        ServerPlayer player;
+
+        try {
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must be run by a player."));
+            return 0;
+        }
+
+        EnumMap<RagdollPartRole, BlockPos> marks = MARKED_PARTS.get(player.getUUID());
+
+        if (marks == null || marks.isEmpty()) {
+            source.sendFailure(Component.literal("No marked ragdoll parts. Mark the ragdoll first, then run /ragdoll skinuuid <username> <uuid>."));
+            return 0;
+        }
+
+        UUID resolvedUuid;
+
+        try {
+            resolvedUuid = parseFlexibleUuid(uuidText);
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("Invalid UUID: " + uuidText));
+            return 0;
+        }
+
+        String textureValue = "";
+        String textureSignature = "";
+
+        try {
+            SkinTextureData textureData = lookupSkinTextureFromMojang(resolvedUuid);
+
+            if (textureData != null) {
+                textureValue = textureData.value();
+                textureSignature = textureData.signature();
+            }
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("Mojang skin texture lookup failed for UUID '" + resolvedUuid + "': " + exception.getMessage()));
+        }
+
+        ServerLevel level = player.serverLevel();
+
+        int updated = 0;
+
+        for (BlockPos pos : marks.values()) {
+            if (level.getBlockEntity(pos) instanceof RagdollPartBlockEntity ragdollPart) {
+                ragdollPart.setSkin(username, resolvedUuid, textureValue, textureSignature);
+                updated++;
+            }
+        }
+
+        int finalUpdated = updated;
+        UUID finalResolvedUuid = resolvedUuid;
+        boolean hasTexture = !textureValue.isBlank();
+
+        source.sendSuccess(
+                () -> Component.literal("Applied skin UUID '" + finalResolvedUuid + "' to " + finalUpdated + " marked ragdoll parts. texture=" + hasTexture),
+                true
+        );
+
+        return 1;
+    }
+
+    private static UUID parseFlexibleUuid(String uuidText) {
+        String cleaned = uuidText.trim();
+
+        if (cleaned.contains("-")) {
+            return UUID.fromString(cleaned);
+        }
+
+        return uuidFromUndashed(cleaned);
+    }
+
     private static boolean tryConnectParts(CommandSourceStack source, ServerLevel level, BlockPos posA, BlockPos posB, String label) {
         ServerSubLevel subLevelA = SableWindAccess.findSubLevelAt(level, posA);
         ServerSubLevel subLevelB = SableWindAccess.findSubLevelAt(level, posB);
@@ -241,38 +369,22 @@ public final class RagdollCommands {
             return false;
         }
 
-        SubLevelPhysicsSystem physicsSystem = SubLevelPhysicsSystem.get(level);
-
-        if (physicsSystem == null) {
-            source.sendFailure(Component.literal("No Sable physics system found for this level."));
-            return false;
-        }
-
         JointOffsets offsets = getJointOffsets(label);
 
-        Vector3d anchorA = blockCenter(posA).add(offsets.offsetA());
-        Vector3d anchorB = blockCenter(posB).add(offsets.offsetB());
+        RigidLinkSavedData savedData = RigidLinkSavedData.get(level);
 
-        GenericConstraintConfiguration configuration = new GenericConstraintConfiguration(
-                anchorA,
-                anchorB,
-                new Quaterniond(),
-                new Quaterniond(),
-                EnumSet.of(
-                        ConstraintJointAxis.LINEAR_X,
-                        ConstraintJointAxis.LINEAR_Y,
-                        ConstraintJointAxis.LINEAR_Z
-                )
-        );
-
-        physicsSystem.getPipeline().addConstraint(
-                subLevelA,
-                subLevelB,
-                configuration
+        savedData.addRagdollLink(
+                subLevelA.getUniqueId(),
+                posA,
+                subLevelB.getUniqueId(),
+                posB,
+                label,
+                offsets.offsetA(),
+                offsets.offsetB()
         );
 
         source.sendSuccess(
-                () -> Component.literal("Connected " + label + " with anchors A=" + anchorA + " B=" + anchorB),
+                () -> Component.literal("Saved ragdoll joint " + label + ". It will sync within 1 second and persist after reload."),
                 true
         );
 
@@ -313,6 +425,97 @@ public final class RagdollCommands {
         }
 
         return 1;
+    }
+    private static UUID lookupUuidFromMojang(String username) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.mojang.com/users/profiles/minecraft/" + username))
+                .GET()
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() == 204 || response.body() == null || response.body().isBlank()) {
+            throw new IllegalStateException("No Java Minecraft profile found for username '" + username + "'");
+        }
+
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException("HTTP " + response.statusCode() + " from Mojang profile lookup");
+        }
+
+        JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+
+        if (!json.has("id")) {
+            throw new IllegalStateException("No UUID returned by Mojang");
+        }
+
+        return uuidFromUndashed(json.get("id").getAsString());
+    }
+
+    private static SkinTextureData lookupSkinTextureFromMojang(UUID uuid) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+
+        String undashedUuid = uuid.toString().replace("-", "");
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + undashedUuid + "?unsigned=false"))
+                .GET()
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException("HTTP " + response.statusCode());
+        }
+
+        JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+
+        if (!json.has("properties")) {
+            throw new IllegalStateException("No properties returned");
+        }
+
+        JsonArray properties = json.getAsJsonArray("properties");
+
+        for (int i = 0; i < properties.size(); i++) {
+            JsonObject property = properties.get(i).getAsJsonObject();
+
+            if (!property.has("name")) {
+                continue;
+            }
+
+            if (!"textures".equals(property.get("name").getAsString())) {
+                continue;
+            }
+
+            String value = property.has("value") ? property.get("value").getAsString() : "";
+            String signature = property.has("signature") ? property.get("signature").getAsString() : "";
+
+            return new SkinTextureData(value, signature);
+        }
+
+        throw new IllegalStateException("No texture property returned");
+    }
+
+    private static UUID uuidFromUndashed(String undashedUuid) {
+        if (undashedUuid.length() != 32) {
+            throw new IllegalArgumentException("Invalid undashed UUID: " + undashedUuid);
+        }
+
+        String dashed = undashedUuid.substring(0, 8)
+                + "-"
+                + undashedUuid.substring(8, 12)
+                + "-"
+                + undashedUuid.substring(12, 16)
+                + "-"
+                + undashedUuid.substring(16, 20)
+                + "-"
+                + undashedUuid.substring(20);
+
+        return UUID.fromString(dashed);
+    }
+
+    private record SkinTextureData(String value, String signature) {
     }
 
     private static int clearMarks(CommandSourceStack source) {
@@ -376,7 +579,80 @@ public final class RagdollCommands {
 
         return 1;
     }
+    private static int setSkin(CommandSourceStack source, String username) {
+        ServerPlayer player;
 
+        try {
+            player = source.getPlayerOrException();
+        } catch (Exception exception) {
+            source.sendFailure(Component.literal("This command must be run by a player."));
+            return 0;
+        }
+
+        EnumMap<RagdollPartRole, BlockPos> marks = MARKED_PARTS.get(player.getUUID());
+
+        if (marks == null || marks.isEmpty()) {
+            source.sendFailure(Component.literal("No marked ragdoll parts. Mark the ragdoll first, then run /ragdoll skin <username>."));
+            return 0;
+        }
+
+        ServerLevel level = player.serverLevel();
+
+        UUID resolvedUuid = null;
+        String textureValue = "";
+        String textureSignature = "";
+
+        try {
+            resolvedUuid = source.getServer()
+                    .getProfileCache()
+                    .get(username)
+                    .map(GameProfile::getId)
+                    .orElse(null);
+        } catch (Exception ignored) {
+            resolvedUuid = null;
+        }
+
+        if (resolvedUuid == null) {
+            try {
+                resolvedUuid = lookupUuidFromMojang(username);
+            } catch (Exception exception) {
+                source.sendFailure(Component.literal("Mojang UUID lookup failed for '" + username + "': " + exception.getMessage()));
+            }
+        }
+
+        if (resolvedUuid != null) {
+            try {
+                SkinTextureData textureData = lookupSkinTextureFromMojang(resolvedUuid);
+
+                if (textureData != null) {
+                    textureValue = textureData.value();
+                    textureSignature = textureData.signature();
+                }
+            } catch (Exception exception) {
+                source.sendFailure(Component.literal("Mojang skin texture lookup failed for '" + username + "': " + exception.getMessage()));
+            }
+        }
+
+        int updated = 0;
+
+        for (BlockPos pos : marks.values()) {
+            if (level.getBlockEntity(pos) instanceof RagdollPartBlockEntity ragdollPart) {
+                ragdollPart.setSkin(username, resolvedUuid, textureValue, textureSignature);
+                updated++;
+            }
+        }
+
+        int finalUpdated = updated;
+        UUID finalResolvedUuid = resolvedUuid;
+        boolean hasTexture = !textureValue.isBlank();
+
+        source.sendSuccess(
+                () -> Component.literal("Applied skin '" + username + "' to " + finalUpdated + " marked ragdoll parts. UUID=" + finalResolvedUuid + ", texture=" + hasTexture),
+                true
+        );
+
+        return 1;
+    }
     private static int debugNearest(CommandSourceStack source) {
         ServerLevel level = source.getLevel();
         BlockPos origin = BlockPos.containing(source.getPosition());

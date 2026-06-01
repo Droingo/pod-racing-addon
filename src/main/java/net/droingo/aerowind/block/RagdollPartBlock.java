@@ -1,24 +1,25 @@
 package net.droingo.aerowind.block;
 
+import net.droingo.aerowind.blockentity.RagdollPartBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jetbrains.annotations.Nullable;
 
-public class RagdollPartBlock extends Block {
+public class RagdollPartBlock extends Block implements EntityBlock {
     private final PartShape partShape;
 
-    /*
-     * Visual / selection shapes.
-     * These should match the model size.
-     */
     private static final VoxelShape HEAD_SHAPE = Block.box(
             4.0D, 4.0D, 4.0D,
             12.0D, 12.0D, 12.0D
@@ -39,21 +40,14 @@ public class RagdollPartBlock extends Block {
             10.0D, 14.0D, 10.0D
     );
 
-    /*
-     * Physics / collision shapes.
-     * These are intentionally smaller than the visual model.
-     *
-     * This helps connected ragdoll limbs stop fighting each other
-     * while still letting the body collide with the ground/world.
-     */
     private static final VoxelShape HEAD_COLLISION = Block.box(
             5.0D, 5.0D, 5.0D,
             11.0D, 11.0D, 11.0D
     );
 
     private static final VoxelShape TORSO_COLLISION = Block.box(
-            5.0D, 3.0D, 6.5D,
-            11.0D, 13.0D, 9.5D
+            4.5D, 2.5D, 6.0D,
+            11.5D, 13.5D, 10.0D
     );
 
     private static final VoxelShape ARM_COLLISION = Block.box(
@@ -82,6 +76,12 @@ public class RagdollPartBlock extends Block {
         return this.partShape;
     }
 
+    @Nullable
+    @Override
+    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+        return new RagdollPartBlockEntity(pos, state, this.partShape);
+    }
+
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return this.getVisualShape();
@@ -100,6 +100,15 @@ public class RagdollPartBlock extends Block {
     @Override
     public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
         return Shapes.empty();
+    }
+
+    @Override
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+
+        if (!level.isClientSide && level.getBlockEntity(pos) instanceof RagdollPartBlockEntity ragdollPart) {
+            ragdollPart.setPartShape(this.partShape);
+        }
     }
 
     private VoxelShape getVisualShape() {
@@ -135,6 +144,16 @@ public class RagdollPartBlock extends Block {
         @Override
         public String getSerializedName() {
             return this.name;
+        }
+
+        public static PartShape byName(String name) {
+            for (PartShape shape : values()) {
+                if (shape.name.equalsIgnoreCase(name)) {
+                    return shape;
+                }
+            }
+
+            return TORSO;
         }
     }
 }
