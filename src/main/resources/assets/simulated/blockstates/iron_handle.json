@@ -1,0 +1,9 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "simulated:block/iron_handle_hidden"
+      }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import org.slf4j.Logger;
 
+
 @Mod(AeroWind.MOD_ID)
 public final class AeroWind {
     public static final String MOD_ID = "aero_wind";
@@ -23,6 +24,7 @@ public final class AeroWind {
         NeoForge.EVENT_BUS.addListener(RigidLinkCommands::onRegisterCommands);
         NeoForge.EVENT_BUS.addListener(RagdollCommands::onRegisterCommands);
         NeoForge.EVENT_BUS.addListener(RigidLinkServerEvents::onServerStopping);
+
 
         LOGGER.info("Aero Wind loaded");
     }

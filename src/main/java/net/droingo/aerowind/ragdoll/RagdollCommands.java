@@ -13,6 +13,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
+
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.yggdrasil.ProfileResult;
 import com.mojang.authlib.properties.Property;
@@ -126,8 +127,11 @@ public final class RagdollCommands {
                         .then(Commands.literal("debugnearest")
                                 .executes(context -> debugNearest(context.getSource()))
                         )
+
         );
     }
+
+
 
     private static int linkCount(CommandSourceStack source) {
         ServerLevel level = source.getLevel();
