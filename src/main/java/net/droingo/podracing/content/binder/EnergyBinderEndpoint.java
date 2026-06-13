@@ -1,5 +1,6 @@
 package net.droingo.podracing.content.binder;
 
+import dev.ryanhcode.sable.Sable;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
@@ -9,6 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3d;
 
 public record EnergyBinderEndpoint(ResourceKey<Level> dimension, BlockPos pos) {
     private static final String TAG_DIMENSION = "dimension";
@@ -24,6 +26,12 @@ public record EnergyBinderEndpoint(ResourceKey<Level> dimension, BlockPos pos) {
         return Vec3.atCenterOf(pos);
     }
 
+    /**
+     * Raw socket position in the block's own level coordinate space.
+     *
+     * For normal world blocks, this is world space.
+     * For Sable sublevel blocks, this may still be sublevel/plot space.
+     */
     public Vec3 socketPosition(Level level) {
         BlockState state = level.getBlockState(pos);
 
@@ -35,12 +43,59 @@ public record EnergyBinderEndpoint(ResourceKey<Level> dimension, BlockPos pos) {
         return center();
     }
 
+    /**
+     * Real world-space socket position.
+     *
+     * Use this for rendering and visual distance checks across Sable sublevels.
+     */
+    public Vec3 projectedSocketPosition(Level level) {
+        Vec3 socket = socketPosition(level);
+
+        Vector3d projected = Sable.HELPER.projectOutOfSubLevel(
+                level,
+                new Vector3d(socket.x, socket.y, socket.z),
+                new Vector3d()
+        );
+
+        return new Vec3(projected.x, projected.y, projected.z);
+    }
+
+    public Direction socketFacing(Level level) {
+        BlockState state = level.getBlockState(pos);
+
+        if (state.hasProperty(BinderMountBlock.FACING)) {
+            return state.getValue(BinderMountBlock.FACING);
+        }
+
+        return Direction.UP;
+    }
+
+    /**
+     * Direction the Binder Mount wants the spring to leave from.
+     *
+     * This gives the physics constraint a preferred local axis, so the mount
+     * wants to face the other endpoint without becoming a hard weld.
+     */
+    public Vec3 socketNormal(Level level) {
+        Direction facing = socketFacing(level);
+        return Vec3.atLowerCornerOf(facing.getNormal()).normalize();
+    }
+
     public double distanceTo(Level level, EnergyBinderEndpoint other) {
         if (!dimension.equals(other.dimension)) {
             return Double.NaN;
         }
 
-        return socketPosition(level).distanceTo(other.socketPosition(level));
+        Vec3 a = socketPosition(level);
+        Vec3 b = other.socketPosition(level);
+
+        double distanceSquared = Sable.HELPER.distanceSquaredWithSubLevels(
+                level,
+                new Vector3d(a.x, a.y, a.z),
+                new Vector3d(b.x, b.y, b.z)
+        );
+
+        return Math.sqrt(distanceSquared);
     }
 
     public CompoundTag save() {

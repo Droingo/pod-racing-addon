@@ -1,5 +1,7 @@
 package net.droingo.podracing.server;
 
+import dev.ryanhcode.sable.neoforge.event.ForgeSablePrePhysicsTickEvent;
+import net.droingo.podracing.content.binder.EnergyBinderConstraintManager;
 import net.droingo.podracing.content.binder.EnergyBinderSync;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -15,5 +17,13 @@ public final class PRServerEvents {
             EnergyBinderSync.sendConnectionsTo(serverPlayer);
             EnergyBinderSync.clearSelectionFor(serverPlayer);
         }
+    }
+
+    @SubscribeEvent
+    public static void onSablePrePhysicsTick(ForgeSablePrePhysicsTickEvent event) {
+        EnergyBinderConstraintManager.onPrePhysicsTick(
+                event.getPhysicsSystem(),
+                event.getTimeStep()
+        );
     }
 }

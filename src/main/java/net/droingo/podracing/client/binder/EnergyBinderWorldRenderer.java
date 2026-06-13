@@ -22,7 +22,12 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 public final class EnergyBinderWorldRenderer {
     private static final ResourceLocation[] BEAM_TEXTURES = new ResourceLocation[]{
@@ -44,6 +49,23 @@ public final class EnergyBinderWorldRenderer {
 
     private static final int FULL_BRIGHT = LightTexture.FULL_BRIGHT;
 
+    /*
+     * Visual-only prediction.
+     *
+     * The previous version only smoothed toward ticked endpoint positions.
+     * This version estimates velocity per tick and predicts the in-between
+     * render-frame position using partial ticks.
+     */
+    private static final double VISUAL_FOLLOW_SMOOTHING = 0.88D;
+    private static final double PREDICTION_STRENGTH = 1.0D;
+
+    /*
+     * Snap instead of smoothing after teleports/assembly/load jumps.
+     */
+    private static final double SNAP_DISTANCE_SQR = 64.0D;
+
+    private static final Map<UUID, BeamVisualState> BEAM_VISUAL_STATES = new HashMap<>();
+
     private EnergyBinderWorldRenderer() {
     }
 
@@ -56,6 +78,7 @@ public final class EnergyBinderWorldRenderer {
         Level level = minecraft.level;
 
         if (level == null) {
+            clearSmoothedEndpoints();
             return;
         }
 
@@ -74,6 +97,10 @@ public final class EnergyBinderWorldRenderer {
         poseStack.translate(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
 
         int renderTick = event.getRenderTick();
+        long gameTime = level.getGameTime();
+        double partialTick = clamp01(event.getPartialTick().getGameTimeDeltaPartialTick(false));
+
+        Set<UUID> renderedThisFrame = new HashSet<>();
 
         for (EnergyBinderConnectionSnapshot connection : EnergyBinderClientState.connections()) {
             if (!connection.enabled() || !connection.active()) {
@@ -88,6 +115,19 @@ public final class EnergyBinderWorldRenderer {
                 continue;
             }
 
+            Vec3 targetStart = connection.endpointA().projectedSocketPosition(level);
+            Vec3 targetEnd = connection.endpointB().projectedSocketPosition(level);
+
+            SmoothedBeamEndpoints visualEndpoints = updateVisualState(
+                    connection.id(),
+                    targetStart,
+                    targetEnd,
+                    gameTime,
+                    partialTick
+            );
+
+            renderedThisFrame.add(connection.id());
+
             RenderType renderType = pickRenderType(connection.id().hashCode(), level);
             VertexConsumer consumer = bufferSource.getBuffer(renderType);
 
@@ -95,13 +135,15 @@ public final class EnergyBinderWorldRenderer {
                     poseStack,
                     consumer,
                     cameraPosition,
-                    connection.endpointA().socketPosition(level),
-                    connection.endpointB().socketPosition(level),
+                    visualEndpoints.start(),
+                    visualEndpoints.end(),
                     connection.color(),
                     1.0F,
                     renderTick
             );
         }
+
+        removeUnusedVisualStates(renderedThisFrame);
 
         renderPreviewBeam(
                 minecraft,
@@ -114,6 +156,73 @@ public final class EnergyBinderWorldRenderer {
 
         poseStack.popPose();
         bufferSource.endBatch();
+    }
+
+    private static SmoothedBeamEndpoints updateVisualState(
+            UUID id,
+            Vec3 targetStart,
+            Vec3 targetEnd,
+            long gameTime,
+            double partialTick
+    ) {
+        BeamVisualState state = BEAM_VISUAL_STATES.get(id);
+
+        if (state == null) {
+            state = new BeamVisualState(targetStart, targetEnd, gameTime);
+            BEAM_VISUAL_STATES.put(id, state);
+            return new SmoothedBeamEndpoints(targetStart, targetEnd);
+        }
+
+        boolean largeJump =
+                state.lastTargetStart.distanceToSqr(targetStart) > SNAP_DISTANCE_SQR
+                        || state.lastTargetEnd.distanceToSqr(targetEnd) > SNAP_DISTANCE_SQR
+                        || state.renderedStart.distanceToSqr(targetStart) > SNAP_DISTANCE_SQR
+                        || state.renderedEnd.distanceToSqr(targetEnd) > SNAP_DISTANCE_SQR;
+
+        if (largeJump) {
+            state.reset(targetStart, targetEnd, gameTime);
+            return new SmoothedBeamEndpoints(targetStart, targetEnd);
+        }
+
+        if (gameTime != state.lastGameTime) {
+            long tickDelta = Math.max(1L, gameTime - state.lastGameTime);
+
+            state.velocityStartPerTick = targetStart.subtract(state.lastTargetStart).scale(1.0D / tickDelta);
+            state.velocityEndPerTick = targetEnd.subtract(state.lastTargetEnd).scale(1.0D / tickDelta);
+
+            state.lastTargetStart = targetStart;
+            state.lastTargetEnd = targetEnd;
+            state.lastGameTime = gameTime;
+        }
+
+        Vec3 predictedStart = state.lastTargetStart.add(
+                state.velocityStartPerTick.scale(partialTick * PREDICTION_STRENGTH)
+        );
+
+        Vec3 predictedEnd = state.lastTargetEnd.add(
+                state.velocityEndPerTick.scale(partialTick * PREDICTION_STRENGTH)
+        );
+
+        state.renderedStart = smoothVec(state.renderedStart, predictedStart, VISUAL_FOLLOW_SMOOTHING);
+        state.renderedEnd = smoothVec(state.renderedEnd, predictedEnd, VISUAL_FOLLOW_SMOOTHING);
+
+        return new SmoothedBeamEndpoints(state.renderedStart, state.renderedEnd);
+    }
+
+    private static Vec3 smoothVec(Vec3 current, Vec3 target, double smoothing) {
+        return new Vec3(
+                current.x + (target.x - current.x) * smoothing,
+                current.y + (target.y - current.y) * smoothing,
+                current.z + (target.z - current.z) * smoothing
+        );
+    }
+
+    private static void removeUnusedVisualStates(Set<UUID> renderedThisFrame) {
+        BEAM_VISUAL_STATES.keySet().removeIf(id -> !renderedThisFrame.contains(id));
+    }
+
+    public static void clearSmoothedEndpoints() {
+        BEAM_VISUAL_STATES.clear();
     }
 
     private static void renderPreviewBeam(
@@ -136,7 +245,7 @@ public final class EnergyBinderWorldRenderer {
             return;
         }
 
-        Vec3 start = startEndpoint.socketPosition(level);
+        Vec3 start = startEndpoint.projectedSocketPosition(level);
         Vec3 end = previewEndPosition(minecraft, level);
 
         if (end == null) {
@@ -166,7 +275,7 @@ public final class EnergyBinderWorldRenderer {
             BlockState hitState = level.getBlockState(hitPos);
 
             if (hitState.is(PRBlocks.BINDER_MOUNT.get())) {
-                return EnergyBinderEndpoint.from(level, hitPos).socketPosition(level);
+                return EnergyBinderEndpoint.from(level, hitPos).projectedSocketPosition(level);
             }
 
             return blockHitResult.getLocation();
@@ -324,6 +433,18 @@ public final class EnergyBinderWorldRenderer {
                 .setNormal(pose, 0.0F, 1.0F, 0.0F);
     }
 
+    private static double clamp01(double value) {
+        if (value < 0.0D) {
+            return 0.0D;
+        }
+
+        if (value > 1.0D) {
+            return 1.0D;
+        }
+
+        return value;
+    }
+
     private static int alpha(int argb) {
         int value = (argb >>> 24) & 0xFF;
         return value <= 0 ? 255 : value;
@@ -339,5 +460,35 @@ public final class EnergyBinderWorldRenderer {
 
     private static int blue(int argb) {
         return argb & 0xFF;
+    }
+
+    private static final class BeamVisualState {
+        private Vec3 renderedStart;
+        private Vec3 renderedEnd;
+
+        private Vec3 lastTargetStart;
+        private Vec3 lastTargetEnd;
+
+        private Vec3 velocityStartPerTick = new Vec3(0.0D, 0.0D, 0.0D);
+        private Vec3 velocityEndPerTick = new Vec3(0.0D, 0.0D, 0.0D);
+
+        private long lastGameTime;
+
+        private BeamVisualState(Vec3 start, Vec3 end, long gameTime) {
+            reset(start, end, gameTime);
+        }
+
+        private void reset(Vec3 start, Vec3 end, long gameTime) {
+            renderedStart = start;
+            renderedEnd = end;
+            lastTargetStart = start;
+            lastTargetEnd = end;
+            velocityStartPerTick = new Vec3(0.0D, 0.0D, 0.0D);
+            velocityEndPerTick = new Vec3(0.0D, 0.0D, 0.0D);
+            lastGameTime = gameTime;
+        }
+    }
+
+    private record SmoothedBeamEndpoints(Vec3 start, Vec3 end) {
     }
 }
