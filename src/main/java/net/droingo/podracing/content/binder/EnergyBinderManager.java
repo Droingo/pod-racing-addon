@@ -86,6 +86,8 @@ public final class EnergyBinderManager {
             return;
         }
 
+        EnergyBinderSync.sendToAll(level);
+
         player.displayClientMessage(
                 Component.literal("Energy Binder connected. Target distance: ")
                         .withStyle(ChatFormatting.AQUA)
