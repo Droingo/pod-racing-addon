@@ -1,10 +1,11 @@
 {
-  "credit": "Made with Blockbench",
-  "textures": {
-    "0": "pod_racing_addon:block/binder_mount",
-    "particle": "pod_racing_addon:block/binder_mount"
-  },
-  "elements": [
+	"format_version": "1.21.11",
+	"credit": "Made with Blockbench",
+	"textures": {
+		"0": "binder_mount",
+		"particle": "binder_mount"
+	},
+	"elements": [
 		{
 			"from": [5, 1, 5],
 			"to": [11, 2, 11],

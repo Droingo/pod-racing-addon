@@ -1,7 +1,30 @@
 {
   "variants": {
-    "": {
+    "facing=up": {
       "model": "pod_racing_addon:block/binder_mount"
+    },
+    "facing=down": {
+      "model": "pod_racing_addon:block/binder_mount",
+      "x": 180
+    },
+    "facing=north": {
+      "model": "pod_racing_addon:block/binder_mount",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "pod_racing_addon:block/binder_mount",
+      "x": 90,
+      "y": 180
+    },
+    "facing=east": {
+      "model": "pod_racing_addon:block/binder_mount",
+      "x": 90,
+      "y": 90
+    },
+    "facing=west": {
+      "model": "pod_racing_addon:block/binder_mount",
+      "x": 90,
+      "y": 270
     }
   }
 }

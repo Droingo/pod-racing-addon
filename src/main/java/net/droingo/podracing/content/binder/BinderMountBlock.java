@@ -4,29 +4,60 @@ import com.mojang.serialization.MapCodec;
 import net.droingo.podracing.util.PRItemChecks;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class BinderMountBlock extends BaseEntityBlock {
     public static final MapCodec<BinderMountBlock> CODEC = simpleCodec(BinderMountBlock::new);
 
+    public static final DirectionProperty FACING = BlockStateProperties.FACING;
+
+    private static final VoxelShape SHAPE_UP = box(5.0D, 0.0D, 5.0D, 11.0D, 4.0D, 11.0D);
+    private static final VoxelShape SHAPE_DOWN = box(5.0D, 12.0D, 5.0D, 11.0D, 16.0D, 11.0D);
+
+    private static final VoxelShape SHAPE_NORTH = box(5.0D, 5.0D, 12.0D, 11.0D, 11.0D, 16.0D);
+    private static final VoxelShape SHAPE_SOUTH = box(5.0D, 5.0D, 0.0D, 11.0D, 11.0D, 4.0D);
+
+    private static final VoxelShape SHAPE_EAST = box(0.0D, 5.0D, 5.0D, 4.0D, 11.0D, 11.0D);
+    private static final VoxelShape SHAPE_WEST = box(12.0D, 5.0D, 5.0D, 16.0D, 11.0D, 11.0D);
+
     public BinderMountBlock(Properties properties) {
         super(properties);
+
+        registerDefaultState(stateDefinition.any().setValue(FACING, Direction.UP));
     }
 
     @Override
     protected MapCodec<? extends BaseEntityBlock> codec() {
         return CODEC;
+    }
+
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        return defaultBlockState().setValue(FACING, context.getClickedFace());
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
+        builder.add(FACING);
     }
 
     @Override
@@ -37,6 +68,27 @@ public final class BinderMountBlock extends BaseEntityBlock {
     @Override
     protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
+    }
+
+    @Override
+    protected VoxelShape getShape(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos,
+            CollisionContext context
+    ) {
+        return shapeForFacing(state.getValue(FACING));
+    }
+
+    private static VoxelShape shapeForFacing(Direction facing) {
+        return switch (facing) {
+            case UP -> SHAPE_UP;
+            case DOWN -> SHAPE_DOWN;
+            case NORTH -> SHAPE_NORTH;
+            case SOUTH -> SHAPE_SOUTH;
+            case EAST -> SHAPE_EAST;
+            case WEST -> SHAPE_WEST;
+        };
     }
 
     @Override

@@ -2,6 +2,7 @@ package net.droingo.podracing.client.binder;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.droingo.podracing.PodRacingAddon;
 import net.droingo.podracing.content.binder.EnergyBinderConnectionSnapshot;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -15,15 +16,24 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 
 public final class EnergyBinderWorldRenderer {
-    private static final ResourceLocation PLACEHOLDER_BEAM_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath("minecraft", "textures/entity/end_crystal/end_crystal_beam.png");
+    private static final ResourceLocation[] BEAM_TEXTURES = new ResourceLocation[]{
+            ResourceLocation.fromNamespaceAndPath(PodRacingAddon.MOD_ID, "textures/effect/energy_beam_0.png"),
+            ResourceLocation.fromNamespaceAndPath(PodRacingAddon.MOD_ID, "textures/effect/energy_beam_1.png"),
+            ResourceLocation.fromNamespaceAndPath(PodRacingAddon.MOD_ID, "textures/effect/energy_beam_2.png")
+    };
 
-    private static final RenderType BEAM_RENDER_TYPE =
-            RenderType.entityTranslucent(PLACEHOLDER_BEAM_TEXTURE);
+    private static final RenderType[] BEAM_RENDER_TYPES = new RenderType[]{
+            RenderType.entityTranslucent(BEAM_TEXTURES[0]),
+            RenderType.entityTranslucent(BEAM_TEXTURES[1]),
+            RenderType.entityTranslucent(BEAM_TEXTURES[2])
+    };
 
-    private static final float BEAM_WIDTH = 0.28F;
-    private static final float UV_TILES_PER_BLOCK = 0.65F;
+    private static final float MAIN_BEAM_WIDTH = 0.64F;
+    private static final float CROSS_BEAM_WIDTH = 0.44F;
+    private static final float UV_TILES_PER_BLOCK = 0.95F;
+
     private static final int FULL_BRIGHT = LightTexture.FULL_BRIGHT;
+    private static final int MIN_ALPHA = 210;
 
     private EnergyBinderWorldRenderer() {
     }
@@ -50,7 +60,6 @@ public final class EnergyBinderWorldRenderer {
         Vec3 cameraPosition = camera.getPosition();
 
         MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
-        VertexConsumer consumer = bufferSource.getBuffer(BEAM_RENDER_TYPE);
 
         poseStack.pushPose();
         poseStack.translate(-cameraPosition.x, -cameraPosition.y, -cameraPosition.z);
@@ -70,29 +79,39 @@ public final class EnergyBinderWorldRenderer {
                 continue;
             }
 
+            RenderType renderType = pickRenderType(connection, level);
+            VertexConsumer consumer = bufferSource.getBuffer(renderType);
+
             renderConnectionBeam(
                     poseStack,
                     consumer,
                     cameraPosition,
+                    level,
                     connection,
                     renderTick
             );
         }
 
         poseStack.popPose();
+        bufferSource.endBatch();
+    }
 
-        bufferSource.endBatch(BEAM_RENDER_TYPE);
+    private static RenderType pickRenderType(EnergyBinderConnectionSnapshot connection, Level level) {
+        long flickerStep = level.getGameTime() / 2L;
+        int index = Math.floorMod(connection.id().hashCode() + (int) flickerStep, BEAM_RENDER_TYPES.length);
+        return BEAM_RENDER_TYPES[index];
     }
 
     private static void renderConnectionBeam(
             PoseStack poseStack,
             VertexConsumer consumer,
             Vec3 cameraPosition,
+            Level level,
             EnergyBinderConnectionSnapshot connection,
             int renderTick
     ) {
-        Vec3 start = connection.endpointA().center();
-        Vec3 end = connection.endpointB().center();
+        Vec3 start = connection.endpointA().socketPosition(level);
+        Vec3 end = connection.endpointB().socketPosition(level);
 
         Vec3 delta = end.subtract(start);
         double length = delta.length();
@@ -105,22 +124,25 @@ public final class EnergyBinderWorldRenderer {
         Vec3 middle = start.add(end).scale(0.5D);
         Vec3 cameraToMiddle = cameraPosition.subtract(middle);
 
-        Vec3 side = direction.cross(cameraToMiddle);
+        Vec3 cameraFacingSide = direction.cross(cameraToMiddle);
 
-        if (side.lengthSqr() < 0.0001D) {
-            side = direction.cross(new Vec3(0.0D, 1.0D, 0.0D));
+        if (cameraFacingSide.lengthSqr() < 0.0001D) {
+            cameraFacingSide = direction.cross(new Vec3(0.0D, 1.0D, 0.0D));
         }
 
-        if (side.lengthSqr() < 0.0001D) {
-            side = direction.cross(new Vec3(1.0D, 0.0D, 0.0D));
+        if (cameraFacingSide.lengthSqr() < 0.0001D) {
+            cameraFacingSide = direction.cross(new Vec3(1.0D, 0.0D, 0.0D));
         }
 
-        side = side.normalize().scale(BEAM_WIDTH * 0.5D);
+        cameraFacingSide = cameraFacingSide.normalize();
 
-        Vec3 startLeft = start.add(side);
-        Vec3 startRight = start.subtract(side);
-        Vec3 endLeft = end.add(side);
-        Vec3 endRight = end.subtract(side);
+        Vec3 crossSide = direction.cross(cameraFacingSide);
+
+        if (crossSide.lengthSqr() < 0.0001D) {
+            crossSide = new Vec3(0.0D, 1.0D, 0.0D);
+        }
+
+        crossSide = crossSide.normalize();
 
         int color = connection.color();
 
@@ -134,6 +156,53 @@ public final class EnergyBinderWorldRenderer {
         float u1 = (float) (length * UV_TILES_PER_BLOCK) + scroll;
 
         PoseStack.Pose pose = poseStack.last();
+
+        renderRibbon(
+                consumer,
+                pose,
+                start,
+                end,
+                cameraFacingSide.scale(MAIN_BEAM_WIDTH * 0.5D),
+                red,
+                green,
+                blue,
+                alpha,
+                u0,
+                u1
+        );
+
+        renderRibbon(
+                consumer,
+                pose,
+                start,
+                end,
+                crossSide.scale(CROSS_BEAM_WIDTH * 0.5D),
+                red,
+                green,
+                blue,
+                Math.min(255, alpha + 20),
+                u0 + 0.15F,
+                u1 + 0.15F
+        );
+    }
+
+    private static void renderRibbon(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            Vec3 start,
+            Vec3 end,
+            Vec3 side,
+            int red,
+            int green,
+            int blue,
+            int alpha,
+            float u0,
+            float u1
+    ) {
+        Vec3 startLeft = start.add(side);
+        Vec3 startRight = start.subtract(side);
+        Vec3 endLeft = end.add(side);
+        Vec3 endRight = end.subtract(side);
 
         addVertex(consumer, pose, startLeft, red, green, blue, alpha, u0, 0.0F);
         addVertex(consumer, pose, startRight, red, green, blue, alpha, u0, 1.0F);

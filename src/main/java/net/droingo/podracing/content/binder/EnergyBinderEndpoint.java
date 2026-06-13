@@ -1,11 +1,13 @@
 package net.droingo.podracing.content.binder;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 public record EnergyBinderEndpoint(ResourceKey<Level> dimension, BlockPos pos) {
@@ -22,12 +24,23 @@ public record EnergyBinderEndpoint(ResourceKey<Level> dimension, BlockPos pos) {
         return Vec3.atCenterOf(pos);
     }
 
-    public double distanceTo(EnergyBinderEndpoint other) {
+    public Vec3 socketPosition(Level level) {
+        BlockState state = level.getBlockState(pos);
+
+        if (state.hasProperty(BinderMountBlock.FACING)) {
+            Direction facing = state.getValue(BinderMountBlock.FACING);
+            return EnergyBinderMountGeometry.socketPosition(pos, facing);
+        }
+
+        return center();
+    }
+
+    public double distanceTo(Level level, EnergyBinderEndpoint other) {
         if (!dimension.equals(other.dimension)) {
             return Double.NaN;
         }
 
-        return center().distanceTo(other.center());
+        return socketPosition(level).distanceTo(other.socketPosition(level));
     }
 
     public CompoundTag save() {

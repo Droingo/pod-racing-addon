@@ -42,14 +42,14 @@ public final class EnergyBinderSavedData extends SavedData {
                 .findFirst();
     }
 
-    public EnergyBinderConnection addConnection(EnergyBinderEndpoint first, EnergyBinderEndpoint second) {
+    public EnergyBinderConnection addConnection(ServerLevel level, EnergyBinderEndpoint first, EnergyBinderEndpoint second) {
         Optional<EnergyBinderConnection> existing = findConnection(first, second);
 
         if (existing.isPresent()) {
             return existing.get();
         }
 
-        EnergyBinderConnection connection = EnergyBinderConnection.create(first, second);
+        EnergyBinderConnection connection = EnergyBinderConnection.create(level, first, second);
         connections.put(connection.id(), connection);
         setDirty();
         return connection;

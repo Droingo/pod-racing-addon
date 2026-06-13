@@ -1,6 +1,7 @@
 package net.droingo.podracing.content.binder;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.Level;
 
 import java.util.UUID;
 
@@ -44,8 +45,8 @@ public final class EnergyBinderConnection {
         this.enabled = enabled;
     }
 
-    public static EnergyBinderConnection create(EnergyBinderEndpoint endpointA, EnergyBinderEndpoint endpointB) {
-        double distance = endpointA.distanceTo(endpointB);
+    public static EnergyBinderConnection create(Level level, EnergyBinderEndpoint endpointA, EnergyBinderEndpoint endpointB) {
+        double distance = endpointA.distanceTo(level, endpointB);
 
         if (Double.isNaN(distance)) {
             distance = 0.0D;

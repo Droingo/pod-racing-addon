@@ -74,7 +74,7 @@ public final class EnergyBinderManager {
         EnergyBinderSavedData data = EnergyBinderSavedData.get(level);
         boolean alreadyExists = data.findConnection(firstEndpoint, clickedEndpoint).isPresent();
 
-        EnergyBinderConnection connection = data.addConnection(firstEndpoint, clickedEndpoint);
+        EnergyBinderConnection connection = data.addConnection(level, firstEndpoint, clickedEndpoint);
         clearSelection(player);
 
         if (alreadyExists) {
