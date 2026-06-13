@@ -6,6 +6,7 @@ import net.droingo.podracing.registry.PRBlockEntities;
 import net.droingo.podracing.registry.PRBlocks;
 import net.droingo.podracing.registry.PRCreativeTabs;
 import net.droingo.podracing.registry.PRItems;
+import net.droingo.podracing.registry.PRMenuTypes;
 import net.droingo.podracing.server.PRServerEvents;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -22,6 +23,7 @@ public final class PodRacingAddon {
         PRItems.register(modBus);
         PRBlockEntities.register(modBus);
         PRCreativeTabs.register(modBus);
+        PRMenuTypes.register(modBus);
         PRNetwork.register(modBus);
 
         NeoForge.EVENT_BUS.register(PRServerEvents.class);

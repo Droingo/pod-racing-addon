@@ -14,6 +14,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -105,6 +108,45 @@ public final class BinderMountBlock extends BaseEntityBlock {
             case EAST -> SHAPE_EAST;
             case WEST -> SHAPE_WEST;
         };
+    }
+
+    @Override
+    protected InteractionResult useWithoutItem(
+            BlockState state,
+            Level level,
+            BlockPos pos,
+            Player player,
+            BlockHitResult hitResult
+    ) {
+        if (!player.isShiftKeyDown()) {
+            return InteractionResult.PASS;
+        }
+
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return InteractionResult.CONSUME;
+        }
+
+        MenuProvider menuProvider = state.getMenuProvider(level, pos);
+
+        if (menuProvider == null) {
+            return InteractionResult.PASS;
+        }
+
+        serverPlayer.openMenu(menuProvider);
+        return InteractionResult.CONSUME;
+    }
+
+    @Override
+    public MenuProvider getMenuProvider(BlockState state, Level level, BlockPos pos) {
+        if (level.getBlockEntity(pos) instanceof BinderMountBlockEntity binderMount) {
+            return binderMount;
+        }
+
+        return null;
     }
 
     @Override
