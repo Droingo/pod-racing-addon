@@ -59,8 +59,8 @@ public final class BinderMountMenu extends AbstractContainerMenu {
 
         frequencyContainer.startOpen(playerInventory.player);
 
-        addSlot(new FrequencySlot(frequencyContainer, 0, 80, 31));
-        addSlot(new FrequencySlot(frequencyContainer, 1, 98, 31));
+        addSlot(new FrequencySlot(frequencyContainer, 0, 76, 36));
+        addSlot(new FrequencySlot(frequencyContainer, 1, 100, 36));
 
         addPlayerInventory(playerInventory);
         addPlayerHotbar(playerInventory);

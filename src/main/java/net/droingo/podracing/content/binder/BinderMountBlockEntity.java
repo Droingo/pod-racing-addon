@@ -1,5 +1,9 @@
 package net.droingo.podracing.content.binder;
 
+import com.simibubi.create.Create;
+import com.simibubi.create.content.redstone.link.IRedstoneLinkable;
+import com.simibubi.create.content.redstone.link.RedstoneLinkNetworkHandler.Frequency;
+import net.createmod.catnip.data.Couple;
 import net.droingo.podracing.content.binder.menu.BinderMountMenu;
 import net.droingo.podracing.registry.PRBlockEntities;
 import net.minecraft.core.BlockPos;
@@ -19,13 +23,15 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public final class BinderMountBlockEntity extends BlockEntity implements MenuProvider, Container {
+public final class BinderMountBlockEntity extends BlockEntity implements MenuProvider, Container, IRedstoneLinkable {
     public static final int FREQUENCY_SLOT_COUNT = 2;
 
     private final NonNullList<ItemStack> frequencyItems =
             NonNullList.withSize(FREQUENCY_SLOT_COUNT, ItemStack.EMPTY);
 
-    private boolean powered = false;
+    private boolean directlyPowered = false;
+    private int receivedWirelessSignal = 0;
+    private boolean createNetworkRegistered = false;
 
     public BinderMountBlockEntity(BlockPos pos, BlockState blockState) {
         super(PRBlockEntities.BINDER_MOUNT.get(), pos, blockState);
@@ -36,29 +42,48 @@ public final class BinderMountBlockEntity extends BlockEntity implements MenuPro
             return;
         }
 
+        blockEntity.ensureCreateNetworkRegistration();
+
         if ((level.getGameTime() & 3L) != 0L) {
             return;
         }
 
-        boolean directlyPowered = level.hasNeighborSignal(pos);
-        blockEntity.setPowered(directlyPowered);
+        boolean poweredByRedstone = level.hasNeighborSignal(pos);
+        blockEntity.setDirectlyPowered(poweredByRedstone);
     }
 
     public boolean isPowered() {
-        return powered;
+        return directlyPowered || receivedWirelessSignal > 0;
     }
 
-    private void setPowered(boolean powered) {
-        if (this.powered == powered) {
+    public boolean isDirectlyPowered() {
+        return directlyPowered;
+    }
+
+    public int getReceivedWirelessSignal() {
+        return receivedWirelessSignal;
+    }
+
+    private void setDirectlyPowered(boolean directlyPowered) {
+        if (this.directlyPowered == directlyPowered) {
             return;
         }
 
-        this.powered = powered;
+        this.directlyPowered = directlyPowered;
         setChanged();
+        syncConnections();
+    }
 
-        if (level instanceof ServerLevel serverLevel) {
-            EnergyBinderSync.sendConnectionsToAll(serverLevel);
+    private void setReceivedWirelessSignal(int signal) {
+        signal = Math.max(0, Math.min(15, signal));
+
+        if (receivedWirelessSignal == signal) {
+            return;
         }
+
+        receivedWirelessSignal = signal;
+        setChanged();
+        syncConnections();
     }
 
     public ItemStack getFrequencyItem(int slot) {
@@ -69,11 +94,129 @@ public final class BinderMountBlockEntity extends BlockEntity implements MenuPro
         return frequencyItems.get(slot);
     }
 
+    public boolean hasCompleteFrequency() {
+        return !getFrequencyItem(0).isEmpty() && !getFrequencyItem(1).isEmpty();
+    }
+
     public boolean hasMatchingFrequencies(BinderMountBlockEntity other) {
         return ItemStack.isSameItemSameComponents(getFrequencyItem(0), other.getFrequencyItem(0))
                 && ItemStack.isSameItemSameComponents(getFrequencyItem(1), other.getFrequencyItem(1))
-                && !getFrequencyItem(0).isEmpty()
-                && !getFrequencyItem(1).isEmpty();
+                && hasCompleteFrequency();
+    }
+
+    private void syncConnections() {
+        if (level instanceof ServerLevel serverLevel) {
+            EnergyBinderSync.sendConnectionsToAll(serverLevel);
+        }
+    }
+
+    private void ensureCreateNetworkRegistration() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+
+        if (!hasCompleteFrequency()) {
+            unregisterFromCreateNetwork();
+            return;
+        }
+
+        if (createNetworkRegistered) {
+            return;
+        }
+
+        Create.REDSTONE_LINK_NETWORK_HANDLER.addToNetwork(level, this);
+        createNetworkRegistered = true;
+    }
+
+    private void rebuildCreateNetworkRegistration() {
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+
+        unregisterFromCreateNetwork();
+        receivedWirelessSignal = 0;
+
+        if (hasCompleteFrequency()) {
+            Create.REDSTONE_LINK_NETWORK_HANDLER.addToNetwork(level, this);
+            createNetworkRegistered = true;
+        }
+
+        syncConnections();
+    }
+
+    private void unregisterFromCreateNetwork() {
+        if (level == null || level.isClientSide()) {
+            createNetworkRegistered = false;
+            return;
+        }
+
+        if (!createNetworkRegistered) {
+            return;
+        }
+
+        Create.REDSTONE_LINK_NETWORK_HANDLER.removeFromNetwork(level, this);
+        createNetworkRegistered = false;
+    }
+
+    @Override
+    public void setRemoved() {
+        unregisterFromCreateNetwork();
+        super.setRemoved();
+    }
+
+    @Override
+    public void clearRemoved() {
+        super.clearRemoved();
+        createNetworkRegistered = false;
+    }
+
+    @Override
+    public int getTransmittedStrength() {
+        /*
+         * Binder Mounts are receivers for now.
+         * A Create Redstone Link transmitter powers them.
+         */
+        return 0;
+    }
+
+    @Override
+    public void setReceivedStrength(int power) {
+        setReceivedWirelessSignal(power);
+    }
+
+    @Override
+    public boolean isListening() {
+        return hasCompleteFrequency();
+    }
+
+    @Override
+    public boolean isAlive() {
+        if (level == null) {
+            return false;
+        }
+
+        if (isRemoved()) {
+            return false;
+        }
+
+        if (!level.isLoaded(worldPosition)) {
+            return false;
+        }
+
+        return level.getBlockEntity(worldPosition) == this;
+    }
+
+    @Override
+    public Couple<Frequency> getNetworkKey() {
+        return Couple.create(
+                Frequency.of(getFrequencyItem(0)),
+                Frequency.of(getFrequencyItem(1))
+        );
+    }
+
+    @Override
+    public BlockPos getLocation() {
+        return worldPosition;
     }
 
     @Override
@@ -97,6 +240,8 @@ public final class BinderMountBlockEntity extends BlockEntity implements MenuPro
         super.loadAdditional(tag, registries);
         frequencyItems.clear();
         ContainerHelper.loadAllItems(tag, frequencyItems, registries);
+        createNetworkRegistered = false;
+        receivedWirelessSignal = 0;
     }
 
     @Override
@@ -126,6 +271,7 @@ public final class BinderMountBlockEntity extends BlockEntity implements MenuPro
 
         if (!removed.isEmpty()) {
             setChanged();
+            rebuildCreateNetworkRegistration();
         }
 
         return removed;
@@ -133,22 +279,34 @@ public final class BinderMountBlockEntity extends BlockEntity implements MenuPro
 
     @Override
     public ItemStack removeItemNoUpdate(int slot) {
-        return ContainerHelper.takeItem(frequencyItems, slot);
+        ItemStack removed = ContainerHelper.takeItem(frequencyItems, slot);
+
+        if (!removed.isEmpty()) {
+            rebuildCreateNetworkRegistration();
+        }
+
+        return removed;
     }
 
     @Override
     public void setItem(int slot, ItemStack stack) {
-        ItemStack storedStack = stack.copy();
+        ItemStack oldStack = frequencyItems.get(slot).copy();
 
-        if (!storedStack.isEmpty()) {
-            storedStack.setCount(1);
+        ItemStack ghostStack = stack.copy();
+
+        if (!ghostStack.isEmpty()) {
+            ghostStack.setCount(1);
         }
 
-        frequencyItems.set(slot, storedStack);
+        frequencyItems.set(slot, ghostStack);
         setChanged();
 
-        if (level instanceof ServerLevel serverLevel) {
-            EnergyBinderSync.sendConnectionsToAll(serverLevel);
+        boolean changed = !ItemStack.isSameItemSameComponents(oldStack, ghostStack);
+
+        if (changed) {
+            rebuildCreateNetworkRegistration();
+        } else {
+            syncConnections();
         }
     }
 
@@ -178,5 +336,6 @@ public final class BinderMountBlockEntity extends BlockEntity implements MenuPro
     public void clearContent() {
         frequencyItems.clear();
         setChanged();
+        rebuildCreateNetworkRegistration();
     }
 }
