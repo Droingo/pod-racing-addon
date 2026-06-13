@@ -76,7 +76,7 @@ public final class EnergyBinderWorldRenderer {
         int renderTick = event.getRenderTick();
 
         for (EnergyBinderConnectionSnapshot connection : EnergyBinderClientState.connections()) {
-            if (!connection.enabled()) {
+            if (!connection.enabled() || !connection.active()) {
                 continue;
             }
 

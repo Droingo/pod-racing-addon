@@ -37,7 +37,7 @@ public final class EnergyBinderSync {
 
         List<EnergyBinderConnectionSnapshot> snapshots = data.connections()
                 .stream()
-                .map(EnergyBinderConnectionSnapshot::from)
+                .map(connection -> EnergyBinderConnectionSnapshot.from(connection, level))
                 .toList();
 
         return new SyncEnergyBindersPayload(snapshots);

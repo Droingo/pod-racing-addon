@@ -1,6 +1,7 @@
 package net.droingo.podracing.content.binder;
 
 import com.mojang.serialization.MapCodec;
+import net.droingo.podracing.registry.PRBlockEntities;
 import net.droingo.podracing.util.PRItemChecks;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -17,6 +18,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -63,6 +66,19 @@ public final class BinderMountBlock extends BaseEntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new BinderMountBlockEntity(pos, state);
+    }
+
+    @Override
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
+            Level level,
+            BlockState state,
+            BlockEntityType<T> blockEntityType
+    ) {
+        return createTickerHelper(
+                blockEntityType,
+                PRBlockEntities.BINDER_MOUNT.get(),
+                BinderMountBlockEntity::tick
+        );
     }
 
     @Override
