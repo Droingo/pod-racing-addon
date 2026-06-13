@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "pod_racing_addon:block/binder_mount"
+    }
+  }
+}
