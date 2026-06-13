@@ -12,15 +12,36 @@ tasks.named('wrapper', Wrapper).configure {
 version = mod_version
 group = mod_group_id
 
-sourceSets.main.resources {
-    srcDir('src/generated/resources')
-    exclude("**/*.bbmodel")
-    exclude("src/generated/**/.cache")
+base {
+    archivesName = mod_id
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir('src/generated/resources')
+            exclude("**/*.bbmodel")
+            exclude("src/generated/**/.cache")
+        }
+    }
 }
 
 repositories {
-    maven { url = "https://maven.createmod.net" }
-    maven { url = "https://maven.ithundxr.dev/snapshots" }
+    maven {
+        name = "Create"
+        url = "https://maven.createmod.net"
+    }
+
+    maven {
+        name = "tterrag"
+        url = "https://maven.ithundxr.dev/snapshots"
+    }
 
     exclusiveContent {
         forRepository {
@@ -29,17 +50,12 @@ repositories {
                 url = "https://api.modrinth.com/maven"
             }
         }
+
         filter {
             includeGroup "maven.modrinth"
         }
     }
 }
-
-base {
-    archivesName = mod_id
-}
-
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 neoForge {
     version = project.neo_version
@@ -68,9 +84,12 @@ neoForge {
 
         data {
             data()
-            programArguments.addAll '--mod', project.mod_id, '--all',
+            programArguments.addAll(
+                    '--mod', project.mod_id,
+                    '--all',
                     '--output', file('src/generated/resources/').getAbsolutePath(),
                     '--existing', file('src/main/resources/').getAbsolutePath()
+            )
         }
 
         configureEach {
@@ -97,12 +116,11 @@ dependencies {
 
     implementation("maven.modrinth:sable:${sable_version}")
     implementation("maven.modrinth:create-aeronautics:${aeronautics_version}")
-
     implementation("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
+
     compileOnly("maven.modrinth:sable:${sable_version}")
     compileOnly(files("libs/sable-companion-common-1.21.1-1.6.0.jar"))
     compileOnly(files("libs/veil-neoforge-1.21.1-4.0.0.jar"))
-
 
     compileOnly("dev.engine-room.flywheel:flywheel-neoforge-api-${minecraft_version}:${flywheel_version}")
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
@@ -110,8 +128,8 @@ dependencies {
     implementation("com.tterrag.registrate:Registrate:${registrate_version}")
 }
 
-var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
-    var replaceProperties = [
+def generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    def replaceProperties = [
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
             neo_version            : neo_version,
@@ -119,8 +137,9 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
             mod_id                 : mod_id,
             mod_name               : mod_name,
             mod_license            : mod_license,
-            mod_version            : mod_version,
+            mod_version            : mod_version
     ]
+
     inputs.properties replaceProperties
     expand replaceProperties
     from "src/main/templates"
@@ -136,6 +155,7 @@ publishing {
             from components.java
         }
     }
+
     repositories {
         maven {
             url "file://${project.projectDir}/repo"

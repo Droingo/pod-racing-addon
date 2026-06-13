@@ -39,7 +39,7 @@ ordering="AFTER"
 side="BOTH"
 
 [[dependencies.${mod_id}]]
-modId="aeronautics"
+modId="simulated"
 type="required"
 versionRange="[1.2.1,)"
 ordering="AFTER"
