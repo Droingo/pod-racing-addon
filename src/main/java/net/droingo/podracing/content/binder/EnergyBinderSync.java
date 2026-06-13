@@ -1,5 +1,6 @@
 package net.droingo.podracing.content.binder;
 
+import net.droingo.podracing.network.payload.SyncEnergyBinderSelectionPayload;
 import net.droingo.podracing.network.payload.SyncEnergyBindersPayload;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,7 +12,7 @@ public final class EnergyBinderSync {
     private EnergyBinderSync() {
     }
 
-    public static void sendTo(ServerPlayer player) {
+    public static void sendConnectionsTo(ServerPlayer player) {
         if (!(player.level() instanceof ServerLevel serverLevel)) {
             return;
         }
@@ -19,8 +20,16 @@ public final class EnergyBinderSync {
         PacketDistributor.sendToPlayer(player, createPayload(serverLevel));
     }
 
-    public static void sendToAll(ServerLevel level) {
+    public static void sendConnectionsToAll(ServerLevel level) {
         PacketDistributor.sendToAllPlayers(createPayload(level));
+    }
+
+    public static void sendSelectionTo(ServerPlayer player, EnergyBinderEndpoint endpoint) {
+        PacketDistributor.sendToPlayer(player, new SyncEnergyBinderSelectionPayload(endpoint));
+    }
+
+    public static void clearSelectionFor(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player, SyncEnergyBinderSelectionPayload.clear());
     }
 
     private static SyncEnergyBindersPayload createPayload(ServerLevel level) {

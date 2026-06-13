@@ -12,7 +12,8 @@ public final class PRServerEvents {
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer serverPlayer) {
-            EnergyBinderSync.sendTo(serverPlayer);
+            EnergyBinderSync.sendConnectionsTo(serverPlayer);
+            EnergyBinderSync.clearSelectionFor(serverPlayer);
         }
     }
 }

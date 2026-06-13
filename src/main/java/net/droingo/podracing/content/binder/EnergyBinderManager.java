@@ -3,6 +3,7 @@ package net.droingo.podracing.content.binder;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.HashMap;
@@ -22,10 +23,18 @@ public final class EnergyBinderManager {
 
     public static void setSelection(Player player, EnergyBinderEndpoint endpoint) {
         ACTIVE_SELECTIONS.put(player.getUUID(), endpoint);
+
+        if (player instanceof ServerPlayer serverPlayer) {
+            EnergyBinderSync.sendSelectionTo(serverPlayer, endpoint);
+        }
     }
 
     public static void clearSelection(Player player) {
         ACTIVE_SELECTIONS.remove(player.getUUID());
+
+        if (player instanceof ServerPlayer serverPlayer) {
+            EnergyBinderSync.clearSelectionFor(serverPlayer);
+        }
     }
 
     public static void handleMountWrenched(ServerLevel level, Player player, EnergyBinderEndpoint clickedEndpoint) {
@@ -86,7 +95,7 @@ public final class EnergyBinderManager {
             return;
         }
 
-        EnergyBinderSync.sendToAll(level);
+        EnergyBinderSync.sendConnectionsToAll(level);
 
         player.displayClientMessage(
                 Component.literal("Energy Binder connected. Target distance: ")

@@ -1,6 +1,7 @@
 package net.droingo.podracing.network.handler;
 
 import net.droingo.podracing.client.binder.EnergyBinderClientState;
+import net.droingo.podracing.network.payload.SyncEnergyBinderSelectionPayload;
 import net.droingo.podracing.network.payload.SyncEnergyBindersPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -13,7 +14,18 @@ public final class EnergyBinderPayloadHandlers {
     }
 
     public static void handleSyncOnServer(SyncEnergyBindersPayload payload, IPayloadContext context) {
-        // This payload is server -> client only in normal use.
-        // The server handler exists because we register it as bidirectional for the 1.21.1 payload API shape.
+        // Server ignores client attempts to sync binder connection state.
+    }
+
+    public static void handleSelectionSyncOnClient(SyncEnergyBinderSelectionPayload payload, IPayloadContext context) {
+        if (payload.hasEndpoint()) {
+            EnergyBinderClientState.setSelectedEndpoint(payload.endpoint());
+        } else {
+            EnergyBinderClientState.clearSelectedEndpoint();
+        }
+    }
+
+    public static void handleSelectionSyncOnServer(SyncEnergyBinderSelectionPayload payload, IPayloadContext context) {
+        // Server owns selection state. Client does not set this directly.
     }
 }

@@ -4,16 +4,25 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.droingo.podracing.PodRacingAddon;
 import net.droingo.podracing.content.binder.EnergyBinderConnectionSnapshot;
+import net.droingo.podracing.content.binder.EnergyBinderEndpoint;
+import net.droingo.podracing.registry.PRBlocks;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+
+import java.util.Optional;
 
 public final class EnergyBinderWorldRenderer {
     private static final ResourceLocation[] BEAM_TEXTURES = new ResourceLocation[]{
@@ -28,12 +37,12 @@ public final class EnergyBinderWorldRenderer {
             RenderType.entityTranslucent(BEAM_TEXTURES[2])
     };
 
-    private static final float MAIN_BEAM_WIDTH = 0.64F;
-    private static final float CROSS_BEAM_WIDTH = 0.44F;
+    private static final float MAIN_BEAM_WIDTH = 0.34F;
+    private static final float CROSS_BEAM_WIDTH = 0.24F;
+    private static final float PREVIEW_WIDTH_MULTIPLIER = 0.72F;
     private static final float UV_TILES_PER_BLOCK = 0.95F;
 
     private static final int FULL_BRIGHT = LightTexture.FULL_BRIGHT;
-    private static final int MIN_ALPHA = 210;
 
     private EnergyBinderWorldRenderer() {
     }
@@ -79,40 +88,118 @@ public final class EnergyBinderWorldRenderer {
                 continue;
             }
 
-            RenderType renderType = pickRenderType(connection, level);
+            RenderType renderType = pickRenderType(connection.id().hashCode(), level);
             VertexConsumer consumer = bufferSource.getBuffer(renderType);
 
-            renderConnectionBeam(
+            renderBeamBetween(
                     poseStack,
                     consumer,
                     cameraPosition,
-                    level,
-                    connection,
+                    connection.endpointA().socketPosition(level),
+                    connection.endpointB().socketPosition(level),
+                    connection.color(),
+                    1.0F,
                     renderTick
             );
         }
+
+        renderPreviewBeam(
+                minecraft,
+                level,
+                poseStack,
+                bufferSource,
+                cameraPosition,
+                renderTick
+        );
 
         poseStack.popPose();
         bufferSource.endBatch();
     }
 
-    private static RenderType pickRenderType(EnergyBinderConnectionSnapshot connection, Level level) {
-        long flickerStep = level.getGameTime() / 2L;
-        int index = Math.floorMod(connection.id().hashCode() + (int) flickerStep, BEAM_RENDER_TYPES.length);
+    private static void renderPreviewBeam(
+            Minecraft minecraft,
+            Level level,
+            PoseStack poseStack,
+            MultiBufferSource.BufferSource bufferSource,
+            Vec3 cameraPosition,
+            int renderTick
+    ) {
+        Optional<EnergyBinderEndpoint> selectedEndpoint = EnergyBinderClientState.selectedEndpoint();
+
+        if (selectedEndpoint.isEmpty()) {
+            return;
+        }
+
+        EnergyBinderEndpoint startEndpoint = selectedEndpoint.get();
+
+        if (!startEndpoint.dimension().equals(level.dimension())) {
+            return;
+        }
+
+        Vec3 start = startEndpoint.socketPosition(level);
+        Vec3 end = previewEndPosition(minecraft, level);
+
+        if (end == null) {
+            return;
+        }
+
+        RenderType renderType = pickRenderType(startEndpoint.pos().hashCode(), level);
+        VertexConsumer consumer = bufferSource.getBuffer(renderType);
+
+        renderBeamBetween(
+                poseStack,
+                consumer,
+                cameraPosition,
+                start,
+                end,
+                0x99FFFFFF,
+                PREVIEW_WIDTH_MULTIPLIER,
+                renderTick
+        );
+    }
+
+    private static Vec3 previewEndPosition(Minecraft minecraft, Level level) {
+        HitResult hitResult = minecraft.hitResult;
+
+        if (hitResult instanceof BlockHitResult blockHitResult) {
+            BlockPos hitPos = blockHitResult.getBlockPos();
+            BlockState hitState = level.getBlockState(hitPos);
+
+            if (hitState.is(PRBlocks.BINDER_MOUNT.get())) {
+                return EnergyBinderEndpoint.from(level, hitPos).socketPosition(level);
+            }
+
+            return blockHitResult.getLocation();
+        }
+
+        Player player = minecraft.player;
+
+        if (player == null) {
+            return null;
+        }
+
+        Vec3 eye = player.getEyePosition();
+        Vec3 look = player.getLookAngle();
+
+        return eye.add(look.scale(12.0D));
+    }
+
+    private static RenderType pickRenderType(int seed, Level level) {
+        long flickerStep = level.getGameTime() / 3L;
+        int index = Math.floorMod(seed + (int) flickerStep, BEAM_RENDER_TYPES.length);
         return BEAM_RENDER_TYPES[index];
     }
 
-    private static void renderConnectionBeam(
+    private static void renderBeamBetween(
             PoseStack poseStack,
             VertexConsumer consumer,
             Vec3 cameraPosition,
-            Level level,
-            EnergyBinderConnectionSnapshot connection,
+            Vec3 start,
+            Vec3 end,
+            int color,
+            float widthMultiplier,
             int renderTick
     ) {
-        Vec3 start = connection.endpointA().socketPosition(level);
-        Vec3 end = connection.endpointB().socketPosition(level);
-
         Vec3 delta = end.subtract(start);
         double length = delta.length();
 
@@ -144,8 +231,6 @@ public final class EnergyBinderWorldRenderer {
 
         crossSide = crossSide.normalize();
 
-        int color = connection.color();
-
         int alpha = alpha(color);
         int red = red(color);
         int green = green(color);
@@ -162,7 +247,7 @@ public final class EnergyBinderWorldRenderer {
                 pose,
                 start,
                 end,
-                cameraFacingSide.scale(MAIN_BEAM_WIDTH * 0.5D),
+                cameraFacingSide.scale(MAIN_BEAM_WIDTH * widthMultiplier * 0.5F),
                 red,
                 green,
                 blue,
@@ -176,11 +261,11 @@ public final class EnergyBinderWorldRenderer {
                 pose,
                 start,
                 end,
-                crossSide.scale(CROSS_BEAM_WIDTH * 0.5D),
+                crossSide.scale(CROSS_BEAM_WIDTH * widthMultiplier * 0.5F),
                 red,
                 green,
                 blue,
-                Math.min(255, alpha + 20),
+                alpha,
                 u0 + 0.15F,
                 u1 + 0.15F
         );

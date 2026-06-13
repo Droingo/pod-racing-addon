@@ -1,12 +1,15 @@
 package net.droingo.podracing.client.binder;
 
 import net.droingo.podracing.content.binder.EnergyBinderConnectionSnapshot;
+import net.droingo.podracing.content.binder.EnergyBinderEndpoint;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public final class EnergyBinderClientState {
     private static List<EnergyBinderConnectionSnapshot> connections = List.of();
+    private static EnergyBinderEndpoint selectedEndpoint;
 
     private EnergyBinderClientState() {
     }
@@ -19,7 +22,20 @@ public final class EnergyBinderClientState {
         return new ArrayList<>(connections);
     }
 
+    public static void setSelectedEndpoint(EnergyBinderEndpoint endpoint) {
+        selectedEndpoint = endpoint;
+    }
+
+    public static void clearSelectedEndpoint() {
+        selectedEndpoint = null;
+    }
+
+    public static Optional<EnergyBinderEndpoint> selectedEndpoint() {
+        return Optional.ofNullable(selectedEndpoint);
+    }
+
     public static void clear() {
         connections = List.of();
+        selectedEndpoint = null;
     }
 }

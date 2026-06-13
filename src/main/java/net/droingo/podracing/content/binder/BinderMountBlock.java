@@ -132,7 +132,7 @@ public final class BinderMountBlock extends BaseEntityBlock {
             int removed = EnergyBinderSavedData.get(serverLevel).removeConnectionsTouching(endpoint);
 
             if (removed > 0) {
-                EnergyBinderSync.sendToAll(serverLevel);
+                EnergyBinderSync.sendConnectionsToAll(serverLevel);
 
                 serverLevel.players().forEach(player -> player.displayClientMessage(
                         Component.literal("Removed " + removed + " Energy Binder connection(s).")

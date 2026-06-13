@@ -1,6 +1,7 @@
 package net.droingo.podracing.network;
 
 import net.droingo.podracing.network.handler.EnergyBinderPayloadHandlers;
+import net.droingo.podracing.network.payload.SyncEnergyBinderSelectionPayload;
 import net.droingo.podracing.network.payload.SyncEnergyBindersPayload;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -24,6 +25,15 @@ public final class PRNetwork {
                 new DirectionalPayloadHandler<>(
                         EnergyBinderPayloadHandlers::handleSyncOnClient,
                         EnergyBinderPayloadHandlers::handleSyncOnServer
+                )
+        );
+
+        registrar.playBidirectional(
+                SyncEnergyBinderSelectionPayload.TYPE,
+                SyncEnergyBinderSelectionPayload.STREAM_CODEC,
+                new DirectionalPayloadHandler<>(
+                        EnergyBinderPayloadHandlers::handleSelectionSyncOnClient,
+                        EnergyBinderPayloadHandlers::handleSelectionSyncOnServer
                 )
         );
     }
