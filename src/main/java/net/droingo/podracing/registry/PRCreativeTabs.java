@@ -16,7 +16,10 @@ public final class PRCreativeTabs {
             CREATIVE_TABS.register("main", () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.pod_racing_addon.main"))
                     .icon(() -> PRItems.BINDER_MOUNT.get().getDefaultInstance())
-                    .displayItems((parameters, output) -> output.accept(PRItems.BINDER_MOUNT.get()))
+                    .displayItems((parameters, output) -> {
+                        output.accept(PRItems.BINDER_MOUNT.get());
+                        output.accept(PRItems.HOVER_REPULSOR.get());
+                    })
                     .build()
             );
 

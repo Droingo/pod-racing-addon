@@ -14,12 +14,15 @@ public record EnergyBinderConnectionSnapshot(
         double damping,
         int color,
         boolean enabled,
-        boolean active
+        boolean active,
+        boolean endpointAPowered,
+        boolean endpointBPowered
 ) {
     public static EnergyBinderConnectionSnapshot from(EnergyBinderConnection connection, Level level) {
-        boolean active = connection.enabled()
-                && (isEndpointPowered(level, connection.endpointA())
-                || isEndpointPowered(level, connection.endpointB()));
+        boolean endpointAPowered = isEndpointPowered(level, connection.endpointA());
+        boolean endpointBPowered = isEndpointPowered(level, connection.endpointB());
+
+        boolean active = connection.enabled() && (endpointAPowered || endpointBPowered);
 
         return new EnergyBinderConnectionSnapshot(
                 connection.id(),
@@ -30,7 +33,9 @@ public record EnergyBinderConnectionSnapshot(
                 connection.damping(),
                 connection.color(),
                 connection.enabled(),
-                active
+                active,
+                endpointAPowered,
+                endpointBPowered
         );
     }
 

@@ -15,7 +15,12 @@ public final class PRItems {
             ITEMS.register("binder_mount", () -> new BlockItem(
                     PRBlocks.BINDER_MOUNT.get(),
                     new Item.Properties()
+
             ));
+
+    public static final DeferredItem<BlockItem> HOVER_REPULSOR =
+            ITEMS.registerSimpleBlockItem(PRBlocks.HOVER_REPULSOR);
+
 
     private PRItems() {
     }

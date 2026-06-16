@@ -48,6 +48,8 @@ public record SyncEnergyBindersPayload(List<EnergyBinderConnectionSnapshot> conn
             buffer.writeInt(connection.color());
             buffer.writeBoolean(connection.enabled());
             buffer.writeBoolean(connection.active());
+            buffer.writeBoolean(connection.endpointAPowered());
+            buffer.writeBoolean(connection.endpointBPowered());
         }
     }
 
@@ -65,6 +67,8 @@ public record SyncEnergyBindersPayload(List<EnergyBinderConnectionSnapshot> conn
             int color = buffer.readInt();
             boolean enabled = buffer.readBoolean();
             boolean active = buffer.readBoolean();
+            boolean endpointAPowered = buffer.readBoolean();
+            boolean endpointBPowered = buffer.readBoolean();
 
             connections.add(new EnergyBinderConnectionSnapshot(
                     id,
@@ -75,7 +79,9 @@ public record SyncEnergyBindersPayload(List<EnergyBinderConnectionSnapshot> conn
                     damping,
                     color,
                     enabled,
-                    active
+                    active,
+                    endpointAPowered,
+                    endpointBPowered
             ));
         }
 

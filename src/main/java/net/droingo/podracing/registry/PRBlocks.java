@@ -8,6 +8,10 @@ import net.minecraft.world.level.material.MapColor;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.droingo.podracing.content.hover.HoverRepulsorBlock;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.material.MapColor;
 
 public final class PRBlocks {
     public static final DeferredRegister.Blocks BLOCKS =
@@ -21,6 +25,13 @@ public final class PRBlocks {
                             .sound(SoundType.METAL)
                             .requiresCorrectToolForDrops()
                             .noOcclusion()
+            ));
+    public static final DeferredBlock<HoverRepulsorBlock> HOVER_REPULSOR =
+            BLOCKS.register("hover_repulsor", () -> new HoverRepulsorBlock(
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.METAL)
+                            .strength(2.0F, 6.0F)
+                            .sound(SoundType.METAL)
             ));
 
     private PRBlocks() {
