@@ -3,6 +3,7 @@ package net.droingo.podracing.client;
 import net.droingo.podracing.PodRacingAddon;
 import net.droingo.podracing.client.binder.BinderMountScreen;
 import net.droingo.podracing.client.binder.EnergyBinderWorldRenderer;
+import net.droingo.podracing.client.hover.HoverRepulsorScreen;
 import net.droingo.podracing.registry.PRMenuTypes;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -35,6 +36,7 @@ public final class PodRacingAddonClient {
         @SubscribeEvent
         public static void registerScreens(RegisterMenuScreensEvent event) {
             event.register(PRMenuTypes.BINDER_MOUNT.get(), BinderMountScreen::new);
+            event.register(PRMenuTypes.HOVER_REPULSOR.get(), HoverRepulsorScreen::new);
         }
     }
 }

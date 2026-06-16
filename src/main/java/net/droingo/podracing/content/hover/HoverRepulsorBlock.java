@@ -16,6 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -44,16 +45,15 @@ public final class HoverRepulsorBlock extends BaseEntityBlock {
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         /*
-         * The facing is the downwash/output direction.
-         *
-         * Click underside of a craft -> facing DOWN -> pushes air downward
-         * and reacts upward.
+         * Placement direction still controls the block model orientation.
+         * Hover physics now uses world-down/world-up internally, so rolling the craft
+         * no longer turns the hover off.
          */
         return defaultBlockState().setValue(FACING, context.getClickedFace());
     }
 
     @Override
-    protected void createBlockStateDefinition(StateDefinition.Builder<net.minecraft.world.level.block.Block, BlockState> builder) {
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING);
     }
 
@@ -125,10 +125,29 @@ public final class HoverRepulsorBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
-        HoverRepulsorManager.register(level, pos);
-
         BlockEntity blockEntity = level.getBlockEntity(pos);
+
+        if (player.isShiftKeyDown()) {
+            if (blockEntity instanceof HoverRepulsorBlockEntity hoverRepulsor) {
+                serverPlayer.openMenu(hoverRepulsor);
+                return InteractionResult.CONSUME;
+            }
+        }
+
+        /*
+         * Non-shift right-click stays as a useful debug readout.
+         */
         boolean hasCorrectBlockEntity = blockEntity instanceof HoverRepulsorBlockEntity;
+
+        boolean powered = false;
+        boolean directPower = false;
+        int wirelessPower = 0;
+
+        if (blockEntity instanceof HoverRepulsorBlockEntity hoverRepulsor) {
+            powered = hoverRepulsor.isPowered();
+            directPower = hoverRepulsor.isDirectlyPowered();
+            wirelessPower = hoverRepulsor.getReceivedWirelessSignal();
+        }
 
         SubLevel subLevel = Sable.HELPER.getContaining(serverLevel, pos);
         boolean isServerSubLevel = subLevel instanceof ServerSubLevel;
@@ -142,6 +161,12 @@ public final class HoverRepulsorBlock extends BaseEntityBlock {
                                 .withStyle(hasCorrectBlockEntity ? ChatFormatting.GREEN : ChatFormatting.RED))
                         .append(Component.literal("SubLevel=" + isServerSubLevel + ", ")
                                 .withStyle(isServerSubLevel ? ChatFormatting.GREEN : ChatFormatting.RED))
+                        .append(Component.literal("Powered=" + powered + ", ")
+                                .withStyle(powered ? ChatFormatting.GREEN : ChatFormatting.RED))
+                        .append(Component.literal("Direct=" + directPower + ", ")
+                                .withStyle(directPower ? ChatFormatting.GREEN : ChatFormatting.GRAY))
+                        .append(Component.literal("Wireless=" + wirelessPower + ", ")
+                                .withStyle(wirelessPower > 0 ? ChatFormatting.GREEN : ChatFormatting.GRAY))
                         .append(Component.literal("Facing=" + facing.getName())
                                 .withStyle(ChatFormatting.YELLOW)),
                 false

@@ -2,6 +2,7 @@ package net.droingo.podracing.registry;
 
 import net.droingo.podracing.PodRacingAddon;
 import net.droingo.podracing.content.binder.menu.BinderMountMenu;
+import net.droingo.podracing.content.hover.menu.HoverRepulsorMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
@@ -16,6 +17,12 @@ public final class PRMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<BinderMountMenu>> BINDER_MOUNT =
             MENUS.register("binder_mount", () -> new MenuType<>(
                     BinderMountMenu::new,
+                    FeatureFlags.DEFAULT_FLAGS
+            ));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<HoverRepulsorMenu>> HOVER_REPULSOR =
+            MENUS.register("hover_repulsor", () -> new MenuType<>(
+                    HoverRepulsorMenu::new,
                     FeatureFlags.DEFAULT_FLAGS
             ));
 

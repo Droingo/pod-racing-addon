@@ -2,5 +2,7 @@
   "itemGroup.pod_racing_addon.main": "Pod Racing Addon",
   "block.pod_racing_addon.binder_mount": "Binder Mount",
   "menu.pod_racing_addon.binder_mount": "Binder Mount",
-  "block.pod_racing_addon.hover_repulsor": "Repulsorlift Generator"
+  "block.pod_racing_addon.hover_repulsor": "Repulsorlift Generator",
+  "menu.pod_racing_addon.hover_repulsor": "Repulsorlift Generator"
+
 }
