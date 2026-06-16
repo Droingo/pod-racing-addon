@@ -16,8 +16,12 @@ import net.droingo.podracing.registry.PRBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.MenuProvider;
@@ -84,6 +88,10 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
     private int receivedWirelessSignal = 0;
     private boolean createNetworkRegistered = false;
 
+    private boolean wasPowered = false;
+    private boolean pendingActivationEffect = false;
+    private long lastActivationEffectGameTime = -200L;
+
     private final Vector3d queuedForcePos = new Vector3d();
     private final Vector3d queuedForce = new Vector3d();
     private final ForceTotal forceTotal = new ForceTotal();
@@ -99,11 +107,17 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
         blockEntity.ensureCreateNetworkRegistration();
 
-        if ((level.getGameTime() & 3L) != 0L) {
-            return;
+        if ((level.getGameTime() & 3L) == 0L) {
+            blockEntity.setDirectlyPowered(level.hasNeighborSignal(pos));
         }
 
-        blockEntity.setDirectlyPowered(level.hasNeighborSignal(pos));
+        boolean poweredNow = blockEntity.isPowered();
+
+        if (poweredNow && !blockEntity.wasPowered) {
+            blockEntity.pendingActivationEffect = true;
+        }
+
+        blockEntity.wasPowered = poweredNow;
     }
 
     @Override
@@ -126,7 +140,17 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
         TerrainCastResult terrain = computeTerrainBelowWorldDown(subLevel, forcePoint);
 
         if (terrain == null) {
+            if (pendingActivationEffect) {
+                spawnActivationEffectAtBlock(subLevel, forcePoint);
+                pendingActivationEffect = false;
+            }
+
             return;
+        }
+
+        if (pendingActivationEffect) {
+            spawnActivationEffect(terrain);
+            pendingActivationEffect = false;
         }
 
         double height = terrain.height();
@@ -178,10 +202,6 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
             authority = 1.0D;
         }
 
-        /*
-         * Strength is the useful "how much weight can this one block hold" control.
-         * Raising strength scales both velocity authority and the impulse cap.
-         */
         double allowedDeltaV = maxDeltaV * damping * strength * authority * stepScale;
         deltaV = clamp(deltaV, 0.0D, allowedDeltaV);
 
@@ -285,7 +305,68 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
         localWorldUp.normalize();
 
-        return new TerrainCastResult(height, localWorldUp);
+        return new TerrainCastResult(height, localWorldUp, worldHitLocation);
+    }
+
+    private void spawnActivationEffect(TerrainCastResult terrain) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        if (level.getGameTime() - lastActivationEffectGameTime < 8L) {
+            return;
+        }
+
+        lastActivationEffectGameTime = level.getGameTime();
+
+        Vec3 ground = terrain.worldHitPosition();
+
+        serverLevel.playSound(
+                null,
+                ground.x,
+                ground.y,
+                ground.z,
+                SoundEvents.PISTON_EXTEND,
+                SoundSource.BLOCKS,
+                0.35F,
+                1.35F
+        );
+
+        serverLevel.playSound(
+                null,
+                ground.x,
+                ground.y,
+                ground.z,
+                SoundEvents.WARDEN_SONIC_BOOM,
+                SoundSource.BLOCKS,
+                0.18F,
+                1.75F
+        );
+    }
+
+    private void spawnActivationEffectAtBlock(ServerSubLevel subLevel, Vec3 localForcePoint) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        if (level.getGameTime() - lastActivationEffectGameTime < 8L) {
+            return;
+        }
+
+        lastActivationEffectGameTime = level.getGameTime();
+
+        Vec3 worldPoint = subLevel.logicalPose().transformPosition(localForcePoint);
+
+        serverLevel.playSound(
+                null,
+                worldPoint.x,
+                worldPoint.y,
+                worldPoint.z,
+                SoundEvents.PISTON_EXTEND,
+                SoundSource.BLOCKS,
+                0.3F,
+                1.45F
+        );
     }
 
     private double estimateEffectiveMass(ServerSubLevel subLevel, Vector3d localNormal) {
@@ -426,9 +507,6 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
     @Override
     public int getTransmittedStrength() {
-        /*
-         * Repulsorlift Generators are receivers.
-         */
         return 0;
     }
 
@@ -591,6 +669,8 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
         createNetworkRegistered = false;
         receivedWirelessSignal = 0;
+        wasPowered = false;
+        pendingActivationEffect = false;
     }
 
     @Override
@@ -716,6 +796,6 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
         return value;
     }
 
-    private record TerrainCastResult(double height, Vector3d localWorldUp) {
+    private record TerrainCastResult(double height, Vector3d localWorldUp, Vec3 worldHitPosition) {
     }
 }
