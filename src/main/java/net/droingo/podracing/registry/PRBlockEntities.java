@@ -1,6 +1,7 @@
 package net.droingo.podracing.registry;
 
 import net.droingo.podracing.PodRacingAddon;
+import net.droingo.podracing.content.airbrake.AirBrakeBlockEntity;
 import net.droingo.podracing.content.binder.BinderMountBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -24,6 +25,14 @@ public final class PRBlockEntities {
                     HoverRepulsorBlockEntity::new,
                     PRBlocks.HOVER_REPULSOR.get()
             ).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AirBrakeBlockEntity>> AIR_BRAKE =
+            BLOCK_ENTITIES.register("air_brake", () ->
+                    BlockEntityType.Builder.of(
+                            AirBrakeBlockEntity::new,
+                            PRBlocks.AIR_BRAKE.get()
+                    ).build(null)
+            );
 
     private PRBlockEntities() {
     }

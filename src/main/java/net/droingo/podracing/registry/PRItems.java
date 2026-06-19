@@ -21,6 +21,9 @@ public final class PRItems {
     public static final DeferredItem<BlockItem> HOVER_REPULSOR =
             ITEMS.registerSimpleBlockItem(PRBlocks.HOVER_REPULSOR);
 
+    public static final DeferredItem<BlockItem> AIR_BRAKE =
+            ITEMS.registerSimpleBlockItem(PRBlocks.AIR_BRAKE);
+
 
     private PRItems() {
     }

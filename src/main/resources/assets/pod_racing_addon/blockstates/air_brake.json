@@ -1,0 +1,9 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "pod_racing_addon:block/air_brake_base"
+      }
+    }
+  ]
+}

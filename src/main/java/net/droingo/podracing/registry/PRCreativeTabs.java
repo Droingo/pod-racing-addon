@@ -19,6 +19,7 @@ public final class PRCreativeTabs {
                     .displayItems((parameters, output) -> {
                         output.accept(PRItems.BINDER_MOUNT.get());
                         output.accept(PRItems.HOVER_REPULSOR.get());
+                        output.accept(PRItems.AIR_BRAKE.get());
                     })
                     .build()
             );
