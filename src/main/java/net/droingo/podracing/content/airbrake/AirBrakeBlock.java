@@ -37,6 +37,7 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class AirBrakeBlock extends BaseEntityBlock {
@@ -46,65 +47,137 @@ public final class AirBrakeBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 
-    private static final VoxelShape SHAPE_TOP_NORTH = Block.box(
-            0.0D, 0.0D, -8.0D,
-            16.0D, 8.0D, 16.0D
+    private static final VoxelShape TOP_BASE_NORTH = Shapes.or(
+            Block.box(1.0D, 0.0D, -7.0D, 15.0D, 3.0D, 16.0D),
+            Block.box(0.0D, 0.0D, 11.0D, 16.0D, 6.0D, 16.0D)
     );
 
-    private static final VoxelShape SHAPE_TOP_SOUTH = Block.box(
-            0.0D, 0.0D, 0.0D,
-            16.0D, 8.0D, 24.0D
+    private static final VoxelShape TOP_CLOSED_NORTH = Shapes.or(
+            TOP_BASE_NORTH,
+            Block.box(1.0D, 3.0D, -7.0D, 15.0D, 6.5D, 13.0D)
     );
 
-    private static final VoxelShape SHAPE_TOP_EAST = Block.box(
-            0.0D, 0.0D, 0.0D,
-            24.0D, 8.0D, 16.0D
+    private static final VoxelShape TOP_OPEN_NORTH = Shapes.or(
+            TOP_BASE_NORTH,
+            Block.box(1.0D, 3.0D, 8.0D, 15.0D, 18.0D, 14.0D),
+            Block.box(1.0D, 13.0D, -3.0D, 15.0D, 18.0D, 10.0D)
     );
 
-    private static final VoxelShape SHAPE_TOP_WEST = Block.box(
-            -8.0D, 0.0D, 0.0D,
-            16.0D, 8.0D, 16.0D
+    private static final VoxelShape TOP_BASE_SOUTH = Shapes.or(
+            Block.box(1.0D, 0.0D, 0.0D, 15.0D, 3.0D, 23.0D),
+            Block.box(0.0D, 0.0D, 0.0D, 16.0D, 6.0D, 5.0D)
     );
 
-    private static final VoxelShape SHAPE_BOTTOM_NORTH = Block.box(
-            0.0D, 8.0D, -8.0D,
-            16.0D, 16.0D, 16.0D
+    private static final VoxelShape TOP_CLOSED_SOUTH = Shapes.or(
+            TOP_BASE_SOUTH,
+            Block.box(1.0D, 3.0D, 3.0D, 15.0D, 6.5D, 23.0D)
     );
 
-    private static final VoxelShape SHAPE_BOTTOM_SOUTH = Block.box(
-            0.0D, 8.0D, 0.0D,
-            16.0D, 16.0D, 24.0D
+    private static final VoxelShape TOP_OPEN_SOUTH = Shapes.or(
+            TOP_BASE_SOUTH,
+            Block.box(1.0D, 3.0D, 2.0D, 15.0D, 18.0D, 8.0D),
+            Block.box(1.0D, 13.0D, 6.0D, 15.0D, 18.0D, 19.0D)
     );
 
-    private static final VoxelShape SHAPE_BOTTOM_EAST = Block.box(
-            0.0D, 8.0D, 0.0D,
-            24.0D, 16.0D, 16.0D
+    private static final VoxelShape TOP_BASE_EAST = Shapes.or(
+            Block.box(0.0D, 0.0D, 1.0D, 23.0D, 3.0D, 15.0D),
+            Block.box(0.0D, 0.0D, 0.0D, 5.0D, 6.0D, 16.0D)
     );
 
-    private static final VoxelShape SHAPE_BOTTOM_WEST = Block.box(
-            -8.0D, 8.0D, 0.0D,
-            16.0D, 16.0D, 16.0D
+    private static final VoxelShape TOP_CLOSED_EAST = Shapes.or(
+            TOP_BASE_EAST,
+            Block.box(3.0D, 3.0D, 1.0D, 23.0D, 6.5D, 15.0D)
     );
 
-    private static final VoxelShape SHAPE_NORTH = Block.box(
-            0.0D, -8.0D, 8.0D,
-            16.0D, 16.0D, 16.0D
+    private static final VoxelShape TOP_OPEN_EAST = Shapes.or(
+            TOP_BASE_EAST,
+            Block.box(2.0D, 3.0D, 1.0D, 8.0D, 18.0D, 15.0D),
+            Block.box(6.0D, 13.0D, 1.0D, 19.0D, 18.0D, 15.0D)
     );
 
-    private static final VoxelShape SHAPE_SOUTH = Block.box(
-            0.0D, -8.0D, 0.0D,
-            16.0D, 16.0D, 8.0D
+    private static final VoxelShape TOP_BASE_WEST = Shapes.or(
+            Block.box(-7.0D, 0.0D, 1.0D, 16.0D, 3.0D, 15.0D),
+            Block.box(11.0D, 0.0D, 0.0D, 16.0D, 6.0D, 16.0D)
     );
 
-    private static final VoxelShape SHAPE_EAST = Block.box(
-            0.0D, -8.0D, 0.0D,
-            8.0D, 16.0D, 16.0D
+    private static final VoxelShape TOP_CLOSED_WEST = Shapes.or(
+            TOP_BASE_WEST,
+            Block.box(-7.0D, 3.0D, 1.0D, 13.0D, 6.5D, 15.0D)
     );
 
-    private static final VoxelShape SHAPE_WEST = Block.box(
-            8.0D, 3.0D, -4.0D,
-            16.0D, 13.0D, 20.0D
+    private static final VoxelShape TOP_OPEN_WEST = Shapes.or(
+            TOP_BASE_WEST,
+            Block.box(8.0D, 3.0D, 1.0D, 14.0D, 18.0D, 15.0D),
+            Block.box(-3.0D, 13.0D, 1.0D, 10.0D, 18.0D, 15.0D)
     );
+
+    private static final VoxelShape BOTTOM_CLOSED_NORTH = mirrorY(TOP_CLOSED_NORTH);
+    private static final VoxelShape BOTTOM_CLOSED_SOUTH = mirrorY(TOP_CLOSED_SOUTH);
+    private static final VoxelShape BOTTOM_CLOSED_EAST = mirrorY(TOP_CLOSED_EAST);
+    private static final VoxelShape BOTTOM_CLOSED_WEST = mirrorY(TOP_CLOSED_WEST);
+
+    private static final VoxelShape BOTTOM_OPEN_NORTH = mirrorY(TOP_OPEN_NORTH);
+    private static final VoxelShape BOTTOM_OPEN_SOUTH = mirrorY(TOP_OPEN_SOUTH);
+    private static final VoxelShape BOTTOM_OPEN_EAST = mirrorY(TOP_OPEN_EAST);
+    private static final VoxelShape BOTTOM_OPEN_WEST = mirrorY(TOP_OPEN_WEST);
+
+    private static final VoxelShape WALL_NORTH_CLOSED = Shapes.or(
+            Block.box(1.0D, 2.0D, 8.0D, 15.0D, 14.0D, 16.0D),
+            Block.box(-7.0D, 3.0D, 10.0D, 23.0D, 13.0D, 15.5D)
+    );
+
+    private static final VoxelShape WALL_NORTH_OPEN = Shapes.or(
+            WALL_NORTH_CLOSED,
+            Block.box(-7.0D, 8.0D, -2.0D, 23.0D, 16.0D, 15.5D)
+    );
+
+    private static final VoxelShape WALL_SOUTH_CLOSED = Shapes.or(
+            Block.box(1.0D, 2.0D, 0.0D, 15.0D, 14.0D, 8.0D),
+            Block.box(-7.0D, 3.0D, 0.5D, 23.0D, 13.0D, 6.0D)
+    );
+
+    private static final VoxelShape WALL_SOUTH_OPEN = Shapes.or(
+            WALL_SOUTH_CLOSED,
+            Block.box(-7.0D, 8.0D, 0.5D, 23.0D, 16.0D, 18.0D)
+    );
+
+    private static final VoxelShape WALL_EAST_CLOSED = Shapes.or(
+            Block.box(0.0D, 2.0D, 1.0D, 8.0D, 14.0D, 15.0D),
+            Block.box(0.5D, 3.0D, -7.0D, 6.0D, 13.0D, 23.0D)
+    );
+
+    private static final VoxelShape WALL_EAST_OPEN = Shapes.or(
+            WALL_EAST_CLOSED,
+            Block.box(0.5D, 8.0D, -7.0D, 18.0D, 16.0D, 23.0D)
+    );
+
+    private static final VoxelShape WALL_WEST_CLOSED = Shapes.or(
+            Block.box(8.0D, 2.0D, 1.0D, 16.0D, 14.0D, 15.0D),
+            Block.box(10.0D, 3.0D, -7.0D, 15.5D, 13.0D, 23.0D)
+    );
+
+    private static final VoxelShape WALL_WEST_OPEN = Shapes.or(
+            WALL_WEST_CLOSED,
+            Block.box(-2.0D, 8.0D, -7.0D, 15.5D, 16.0D, 23.0D)
+    );
+
+    private static VoxelShape mirrorY(VoxelShape shape) {
+        VoxelShape[] result = new VoxelShape[]{Shapes.empty()};
+
+        shape.forAllBoxes((minX, minY, minZ, maxX, maxY, maxZ) -> result[0] = Shapes.or(
+                result[0],
+                Block.box(
+                        minX * 16.0D,
+                        (1.0D - maxY) * 16.0D,
+                        minZ * 16.0D,
+                        maxX * 16.0D,
+                        (1.0D - minY) * 16.0D,
+                        maxZ * 16.0D
+                )
+        ));
+
+        return result[0];
+    }
 
     public AirBrakeBlock(Properties properties) {
         super(properties);
@@ -122,16 +195,24 @@ public final class AirBrakeBlock extends BaseEntityBlock {
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         Direction mountFace = context.getClickedFace();
-        Direction facing = context.getHorizontalDirection().getOpposite();
-
-        if (mountFace.getAxis().isHorizontal() && facing.getAxis() == mountFace.getAxis()) {
-            facing = mountFace.getClockWise();
-        }
+        Direction facing = defaultFacingForMount(mountFace, context.getHorizontalDirection().getOpposite());
 
         return defaultBlockState()
                 .setValue(MOUNT_FACE, mountFace)
                 .setValue(FACING, facing)
                 .setValue(POWERED, false);
+    }
+
+    private static Direction defaultFacingForMount(Direction mountFace, Direction playerFacing) {
+        if (mountFace == Direction.UP || mountFace == Direction.DOWN) {
+            return playerFacing;
+        }
+
+        if (mountFace == Direction.NORTH || mountFace == Direction.SOUTH) {
+            return playerFacing == Direction.WEST ? Direction.WEST : Direction.EAST;
+        }
+
+        return playerFacing == Direction.SOUTH ? Direction.SOUTH : Direction.NORTH;
     }
 
     @Override
@@ -140,74 +221,57 @@ public final class AirBrakeBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected VoxelShape getShape(
-            BlockState state,
-            BlockGetter level,
-            BlockPos pos,
-            CollisionContext context
-    ) {
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return shapeForState(state);
     }
 
     @Override
-    protected VoxelShape getCollisionShape(
-            BlockState state,
-            BlockGetter level,
-            BlockPos pos,
-            CollisionContext context
-    ) {
-        return shapeForState(state);
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        BlockState unpoweredState = state.hasProperty(POWERED)
+                ? state.setValue(POWERED, false)
+                : state;
+
+        return shapeForState(unpoweredState);
     }
 
     @Override
-    protected VoxelShape getInteractionShape(
-            BlockState state,
-            BlockGetter level,
-            BlockPos pos
-    ) {
+    protected VoxelShape getInteractionShape(BlockState state, BlockGetter level, BlockPos pos) {
         return shapeForState(state);
     }
 
     private static VoxelShape shapeForState(BlockState state) {
         Direction mountFace = state.getValue(MOUNT_FACE);
         Direction facing = state.getValue(FACING);
+        boolean powered = state.hasProperty(POWERED) && state.getValue(POWERED);
 
         if (mountFace == Direction.UP) {
             return switch (facing) {
-                case SOUTH -> SHAPE_TOP_SOUTH;
-                case EAST -> SHAPE_TOP_EAST;
-                case WEST -> SHAPE_TOP_WEST;
-                default -> SHAPE_TOP_NORTH;
+                case SOUTH -> powered ? TOP_OPEN_SOUTH : TOP_CLOSED_SOUTH;
+                case EAST -> powered ? TOP_OPEN_EAST : TOP_CLOSED_EAST;
+                case WEST -> powered ? TOP_OPEN_WEST : TOP_CLOSED_WEST;
+                default -> powered ? TOP_OPEN_NORTH : TOP_CLOSED_NORTH;
             };
         }
 
         if (mountFace == Direction.DOWN) {
             return switch (facing) {
-                case SOUTH -> SHAPE_BOTTOM_SOUTH;
-                case EAST -> SHAPE_BOTTOM_EAST;
-                case WEST -> SHAPE_BOTTOM_WEST;
-                default -> SHAPE_BOTTOM_NORTH;
+                case SOUTH -> powered ? BOTTOM_OPEN_SOUTH : BOTTOM_CLOSED_SOUTH;
+                case EAST -> powered ? BOTTOM_OPEN_EAST : BOTTOM_CLOSED_EAST;
+                case WEST -> powered ? BOTTOM_OPEN_WEST : BOTTOM_CLOSED_WEST;
+                default -> powered ? BOTTOM_OPEN_NORTH : BOTTOM_CLOSED_NORTH;
             };
         }
 
         return switch (mountFace) {
-            case SOUTH -> SHAPE_SOUTH;
-            case EAST -> SHAPE_EAST;
-            case WEST -> SHAPE_WEST;
-            default -> SHAPE_NORTH;
+            case SOUTH -> powered ? WALL_SOUTH_OPEN : WALL_SOUTH_CLOSED;
+            case EAST -> powered ? WALL_EAST_OPEN : WALL_EAST_CLOSED;
+            case WEST -> powered ? WALL_WEST_OPEN : WALL_WEST_CLOSED;
+            default -> powered ? WALL_NORTH_OPEN : WALL_NORTH_CLOSED;
         };
     }
 
     @Override
-    protected ItemInteractionResult useItemOn(
-            ItemStack stack,
-            BlockState state,
-            Level level,
-            BlockPos pos,
-            Player player,
-            InteractionHand hand,
-            BlockHitResult hitResult
-    ) {
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
         if (PRItemChecks.isCreateWrench(stack)) {
             if (level.isClientSide()) {
                 return ItemInteractionResult.SUCCESS;
@@ -254,18 +318,17 @@ public final class AirBrakeBlock extends BaseEntityBlock {
 
         Direction mountFace = state.getValue(MOUNT_FACE);
         Direction currentFacing = state.getValue(FACING);
-        Direction nextFacing = currentFacing.getClockWise();
-
-        if (mountFace.getAxis().isHorizontal()) {
-            int guard = 0;
-
-            while (nextFacing.getAxis() == mountFace.getAxis() && guard < 4) {
-                nextFacing = nextFacing.getClockWise();
-                guard++;
-            }
-        }
+        Direction nextFacing = nextFacingForMount(mountFace, currentFacing);
 
         level.setBlock(pos, state.setValue(FACING, nextFacing), 3);
+    }
+
+    private static Direction nextFacingForMount(Direction mountFace, Direction currentFacing) {
+        return switch (mountFace) {
+            case UP, DOWN -> currentFacing.getClockWise();
+            case NORTH, SOUTH -> currentFacing == Direction.EAST ? Direction.WEST : Direction.EAST;
+            case EAST, WEST -> currentFacing == Direction.NORTH ? Direction.SOUTH : Direction.NORTH;
+        };
     }
 
     private static void pickupWithWrench(ServerLevel level, BlockPos pos, BlockState state, Player player) {
@@ -289,13 +352,7 @@ public final class AirBrakeBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected InteractionResult useWithoutItem(
-            BlockState state,
-            Level level,
-            BlockPos pos,
-            Player player,
-            BlockHitResult hitResult
-    ) {
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
@@ -338,22 +395,14 @@ public final class AirBrakeBlock extends BaseEntityBlock {
         serverPlayer.displayClientMessage(
                 Component.literal("Air Brake Debug: ")
                         .withStyle(ChatFormatting.AQUA)
-                        .append(Component.literal("BE=" + hasCorrectBlockEntity + ", ")
-                                .withStyle(hasCorrectBlockEntity ? ChatFormatting.GREEN : ChatFormatting.RED))
-                        .append(Component.literal("SubLevel=" + isServerSubLevel + ", ")
-                                .withStyle(isServerSubLevel ? ChatFormatting.GREEN : ChatFormatting.RED))
-                        .append(Component.literal("Powered=" + powered + ", ")
-                                .withStyle(powered ? ChatFormatting.GREEN : ChatFormatting.RED))
-                        .append(Component.literal("Direct=" + directPower + ", ")
-                                .withStyle(directPower ? ChatFormatting.GREEN : ChatFormatting.GRAY))
-                        .append(Component.literal("Wireless=" + wirelessPower + ", ")
-                                .withStyle(wirelessPower > 0 ? ChatFormatting.GREEN : ChatFormatting.GRAY))
-                        .append(Component.literal("Mount=" + mountFace.getName() + ", ")
-                                .withStyle(ChatFormatting.YELLOW))
-                        .append(Component.literal("Facing=" + facing.getName() + ", ")
-                                .withStyle(ChatFormatting.YELLOW))
-                        .append(Component.literal("Color=" + color)
-                                .withStyle(ChatFormatting.LIGHT_PURPLE)),
+                        .append(Component.literal("BE=" + hasCorrectBlockEntity + ", ").withStyle(hasCorrectBlockEntity ? ChatFormatting.GREEN : ChatFormatting.RED))
+                        .append(Component.literal("SubLevel=" + isServerSubLevel + ", ").withStyle(isServerSubLevel ? ChatFormatting.GREEN : ChatFormatting.RED))
+                        .append(Component.literal("Powered=" + powered + ", ").withStyle(powered ? ChatFormatting.GREEN : ChatFormatting.RED))
+                        .append(Component.literal("Direct=" + directPower + ", ").withStyle(directPower ? ChatFormatting.GREEN : ChatFormatting.GRAY))
+                        .append(Component.literal("Wireless=" + wirelessPower + ", ").withStyle(wirelessPower > 0 ? ChatFormatting.GREEN : ChatFormatting.GRAY))
+                        .append(Component.literal("Mount=" + mountFace.getName() + ", ").withStyle(ChatFormatting.YELLOW))
+                        .append(Component.literal("Facing=" + facing.getName() + ", ").withStyle(ChatFormatting.YELLOW))
+                        .append(Component.literal("Color=" + color).withStyle(ChatFormatting.LIGHT_PURPLE)),
                 false
         );
 
@@ -366,16 +415,8 @@ public final class AirBrakeBlock extends BaseEntityBlock {
     }
 
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
-            Level level,
-            BlockState state,
-            BlockEntityType<T> blockEntityType
-    ) {
-        return createTickerHelper(
-                blockEntityType,
-                PRBlockEntities.AIR_BRAKE.get(),
-                AirBrakeBlockEntity::tick
-        );
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType) {
+        return createTickerHelper(blockEntityType, PRBlockEntities.AIR_BRAKE.get(), AirBrakeBlockEntity::tick);
     }
 
     @Override

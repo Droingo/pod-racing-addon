@@ -1,9 +1,51 @@
 {
-  "multipart": [
-    {
-      "apply": {
-        "model": "pod_racing_addon:block/air_brake_base"
-      }
-    }
-  ]
+  "variants": {
+    "mount_face=up,facing=north,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=up,facing=north,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=up,facing=south,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=up,facing=south,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=up,facing=east,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=up,facing=east,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=up,facing=west,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=up,facing=west,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=down,facing=north,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=down,facing=north,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=down,facing=south,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=down,facing=south,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=down,facing=east,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=down,facing=east,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=down,facing=west,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=down,facing=west,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=north,facing=east,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=north,facing=east,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=north,facing=west,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=north,facing=west,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=south,facing=east,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=south,facing=east,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=south,facing=west,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=south,facing=west,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=east,facing=north,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=east,facing=north,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=east,facing=south,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=east,facing=south,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=west,facing=north,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=west,facing=north,powered=true": { "model": "pod_racing_addon:block/air_brake_base" },
+
+    "mount_face=west,facing=south,powered=false": { "model": "pod_racing_addon:block/air_brake_base" },
+    "mount_face=west,facing=south,powered=true": { "model": "pod_racing_addon:block/air_brake_base" }
+  }
 }

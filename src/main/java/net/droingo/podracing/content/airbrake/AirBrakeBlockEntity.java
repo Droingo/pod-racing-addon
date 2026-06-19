@@ -15,7 +15,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.MenuProvider;
@@ -40,6 +43,9 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
     private static final double MAX_BRAKE_IMPULSE = 75.0D;
     private static final double BRAKE_STRENGTH = 1.0D;
 
+    private static final float ANIMATION_OPEN_SPEED = 0.18F;
+    private static final float ANIMATION_CLOSE_SPEED = 0.14F;
+
     private DyeColor flapColor = DyeColor.RED;
 
     private final NonNullList<ItemStack> frequencyItems = NonNullList.withSize(FREQUENCY_SLOT_COUNT, ItemStack.EMPTY);
@@ -47,6 +53,9 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
     private boolean directlyPowered = false;
     private int receivedWirelessSignal = 0;
     private boolean createNetworkRegistered = false;
+
+    private float flapOpenAmount = 0.0F;
+    private float previousFlapOpenAmount = 0.0F;
 
     private final ForceTotal forceTotal = new ForceTotal();
     private final Vector3d localAnchor = new Vector3d();
@@ -58,6 +67,7 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
 
     public static void tick(Level level, BlockPos pos, BlockState state, AirBrakeBlockEntity blockEntity) {
         if (level.isClientSide()) {
+            blockEntity.tickClientAnimation(state);
             return;
         }
 
@@ -68,6 +78,52 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
         }
 
         blockEntity.updatePoweredBlockState();
+    }
+
+    private void tickClientAnimation(BlockState state) {
+        previousFlapOpenAmount = flapOpenAmount;
+
+        boolean powered = state.hasProperty(AirBrakeBlock.POWERED) && state.getValue(AirBrakeBlock.POWERED);
+
+        if (powered) {
+            flapOpenAmount = Math.min(1.0F, flapOpenAmount + ANIMATION_OPEN_SPEED);
+        } else {
+            flapOpenAmount = Math.max(0.0F, flapOpenAmount - ANIMATION_CLOSE_SPEED);
+        }
+    }
+
+    public float getFlapOpenAmount(float partialTick) {
+        return previousFlapOpenAmount + (flapOpenAmount - previousFlapOpenAmount) * partialTick;
+    }
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        CompoundTag tag = super.getUpdateTag(registries);
+        saveAdditional(tag, registries);
+        return tag;
+    }
+
+    @Override
+    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
+        loadAdditional(tag, registries);
+    }
+
+    @Override
+    public ClientboundBlockEntityDataPacket getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    public void onDataPacket(
+            Connection connection,
+            ClientboundBlockEntityDataPacket packet,
+            HolderLookup.Provider registries
+    ) {
+        CompoundTag tag = packet.getTag();
+
+        if (tag != null) {
+            loadAdditional(tag, registries);
+        }
     }
 
     @Override
@@ -130,10 +186,6 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
 
         brakeImpulse.set(brakeDirection).mul(impulseMagnitude);
 
-        /*
-         * Applying at the air brake position means off-centre brakes can create
-         * some useful turning torque.
-         */
         forceTotal.applyImpulseAtPoint(subLevel, localAnchor, brakeImpulse);
         handle.applyForcesAndReset(forceTotal);
     }
@@ -222,7 +274,10 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
         this.flapColor = flapColor;
         setChanged();
 
-        if (level != null) {
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.getChunkSource().blockChanged(worldPosition);
+            serverLevel.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        } else if (level != null) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
         }
     }
@@ -276,7 +331,13 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
 
         setChanged();
         updatePoweredBlockState();
-        level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.getChunkSource().blockChanged(worldPosition);
+            serverLevel.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        } else {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
     }
 
     private void unregisterFromCreateNetwork() {
@@ -381,8 +442,11 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
         ContainerHelper.loadAllItems(tag, frequencyItems, registries);
 
         createNetworkRegistered = false;
-        receivedWirelessSignal = 0;
-        directlyPowered = false;
+
+        if (level == null || !level.isClientSide()) {
+            receivedWirelessSignal = 0;
+            directlyPowered = false;
+        }
     }
 
     @Override

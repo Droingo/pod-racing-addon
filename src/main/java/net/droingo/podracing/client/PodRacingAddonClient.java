@@ -1,23 +1,22 @@
 package net.droingo.podracing.client;
 
 import net.droingo.podracing.PodRacingAddon;
+import net.droingo.podracing.client.airbrake.AirBrakeRenderer;
 import net.droingo.podracing.client.airbrake.AirBrakeScreen;
 import net.droingo.podracing.client.binder.BinderMountScreen;
 import net.droingo.podracing.client.binder.EnergyBinderWorldRenderer;
 import net.droingo.podracing.client.hover.HoverRepulsorScreen;
+import net.droingo.podracing.registry.PRBlockEntities;
 import net.droingo.podracing.registry.PRMenuTypes;
+import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.droingo.podracing.PodRacingAddon;
-import net.minecraft.resources.ResourceLocation;
-import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.ModelEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
-import net.droingo.podracing.client.airbrake.AirBrakeRenderer;
-import net.droingo.podracing.registry.PRBlockEntities;
-import net.neoforged.neoforge.client.event.EntityRenderersEvent;
-
 
 @EventBusSubscriber(
         modid = PodRacingAddon.MOD_ID,
@@ -32,23 +31,11 @@ public final class PodRacingAddonClient {
         EnergyBinderWorldRenderer.onRenderLevelStage(event);
     }
 
-
-
-    @SubscribeEvent
-    public static void registerBlockEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerBlockEntityRenderer(
-                PRBlockEntities.AIR_BRAKE.get(),
-                AirBrakeRenderer::new
-        );
-    }
-
     @EventBusSubscriber(
             modid = PodRacingAddon.MOD_ID,
             value = Dist.CLIENT,
             bus = EventBusSubscriber.Bus.MOD
     )
-
-
     public static final class ModBusEvents {
         private ModBusEvents() {
         }
@@ -59,17 +46,30 @@ public final class PodRacingAddonClient {
             event.register(PRMenuTypes.HOVER_REPULSOR.get(), HoverRepulsorScreen::new);
             event.register(PRMenuTypes.AIR_BRAKE.get(), AirBrakeScreen::new);
         }
-    }
-    @SubscribeEvent
-    public static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
-        event.register(ResourceLocation.fromNamespaceAndPath(
-                PodRacingAddon.MOD_ID,
-                "block/air_brake_base"
-        ));
 
-        event.register(ResourceLocation.fromNamespaceAndPath(
-                PodRacingAddon.MOD_ID,
-                "block/air_brake_flap"
-        ));
+        @SubscribeEvent
+        public static void registerBlockEntityRenderers(EntityRenderersEvent.RegisterRenderers event) {
+            event.registerBlockEntityRenderer(
+                    PRBlockEntities.AIR_BRAKE.get(),
+                    AirBrakeRenderer::new
+            );
+        }
+
+        @SubscribeEvent
+        public static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
+            event.register(ModelResourceLocation.standalone(
+                    ResourceLocation.fromNamespaceAndPath(
+                            PodRacingAddon.MOD_ID,
+                            "block/air_brake_base"
+                    )
+            ));
+
+            event.register(ModelResourceLocation.standalone(
+                    ResourceLocation.fromNamespaceAndPath(
+                            PodRacingAddon.MOD_ID,
+                            "block/air_brake_flap"
+                    )
+            ));
+        }
     }
 }

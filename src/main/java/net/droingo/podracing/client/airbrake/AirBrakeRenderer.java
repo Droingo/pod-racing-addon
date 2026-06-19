@@ -10,14 +10,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.ModelResourceLocation;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.data.ModelData;
 
-public final class AirBrakeRenderer implements net.minecraft.client.renderer.blockentity.BlockEntityRenderer<AirBrakeBlockEntity> {
+public final class AirBrakeRenderer implements BlockEntityRenderer<AirBrakeBlockEntity> {
     private static final ModelResourceLocation BASE_MODEL =
             ModelResourceLocation.standalone(ResourceLocation.fromNamespaceAndPath(
                     PodRacingAddon.MOD_ID,
@@ -30,9 +33,15 @@ public final class AirBrakeRenderer implements net.minecraft.client.renderer.blo
                     "block/air_brake_flap"
             ));
 
+    private static final double HINGE_X = 0.5D;
+    private static final double HINGE_Y = 0.28D;
+    private static final double HINGE_Z = 0.8125D;
+
+    private static final float MAX_OPEN_ANGLE_DEGREES = 45.0F;
+
     private final BlockRenderDispatcher blockRenderer;
 
-    public AirBrakeRenderer(net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider.Context context) {
+    public AirBrakeRenderer(BlockEntityRendererProvider.Context context) {
         this.blockRenderer = Minecraft.getInstance().getBlockRenderer();
     }
 
@@ -56,14 +65,6 @@ public final class AirBrakeRenderer implements net.minecraft.client.renderer.blo
 
         poseStack.pushPose();
 
-        /*
-         * Move to block centre, rotate the whole model, then move back.
-         * The base/flap models should be authored as:
-         *
-         * - mounted on top of a block
-         * - facing north
-         * - closed position
-         */
         poseStack.translate(0.5D, 0.5D, 0.5D);
         applyMountAndFacingTransform(poseStack, mountFace, facing);
         poseStack.translate(-0.5D, -0.5D, -0.5D);
@@ -80,10 +81,13 @@ public final class AirBrakeRenderer implements net.minecraft.client.renderer.blo
                 packedOverlay
         );
 
-        /*
-         * For now, render flap closed.
-         * Next pass: rotate this flap around its hinge when powered.
-         */
+        float openAmount = easeOutCubic(airBrake.getFlapOpenAmount(partialTick));
+
+        poseStack.pushPose();
+        poseStack.translate(HINGE_X, HINGE_Y, HINGE_Z);
+        poseStack.mulPose(Axis.XP.rotationDegrees(MAX_OPEN_ANGLE_DEGREES * openAmount));
+        poseStack.translate(-HINGE_X, -HINGE_Y, -HINGE_Z);
+
         int flapColor = airBrake.getFlapColorRgb();
 
         float red = ((flapColor >> 16) & 255) / 255.0F;
@@ -102,6 +106,7 @@ public final class AirBrakeRenderer implements net.minecraft.client.renderer.blo
                 packedOverlay
         );
 
+        poseStack.popPose();
         poseStack.popPose();
     }
 
@@ -138,42 +143,41 @@ public final class AirBrakeRenderer implements net.minecraft.client.renderer.blo
     }
 
     private static void applyMountAndFacingTransform(PoseStack poseStack, Direction mountFace, Direction facing) {
-        /*
-         * Model default:
-         * - sitting on top of the block
-         * - mounted to UP face
-         * - facing north
-         *
-         * First rotate from top-mount into the clicked mount face.
-         */
         switch (mountFace) {
             case UP -> {
-                // already top-mounted
+                poseStack.mulPose(Axis.YP.rotationDegrees(yawForFacing(facing)));
             }
-            case DOWN -> poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
 
-            case NORTH -> poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
-            case SOUTH -> poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F));
+            case DOWN -> {
+                poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
+                poseStack.mulPose(Axis.YP.rotationDegrees(-yawForFacing(facing)));
+            }
 
-            case EAST -> poseStack.mulPose(Axis.ZP.rotationDegrees(90.0F));
-            case WEST -> poseStack.mulPose(Axis.ZP.rotationDegrees(-90.0F));
-        }
+            case NORTH -> {
+                poseStack.mulPose(Axis.XP.rotationDegrees(-90.0F));
+                poseStack.mulPose(Axis.YP.rotationDegrees(facing == Direction.EAST ? 90.0F : -90.0F));
+            }
 
-        /*
-         * Then rotate around the mount normal so the air brake can face along
-         * the surface.
-         */
-        float yaw = yawForFacing(facing);
+            case SOUTH -> {
+                poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+                poseStack.mulPose(Axis.YP.rotationDegrees(facing == Direction.EAST ? -90.0F : 90.0F));
+            }
 
-        switch (mountFace) {
-            case UP -> poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
-            case DOWN -> poseStack.mulPose(Axis.YP.rotationDegrees(-yaw));
+            case EAST -> {
+                poseStack.mulPose(Axis.ZP.rotationDegrees(-90.0F));
 
-            case NORTH -> poseStack.mulPose(Axis.ZP.rotationDegrees(yaw));
-            case SOUTH -> poseStack.mulPose(Axis.ZP.rotationDegrees(-yaw));
+                if (facing == Direction.SOUTH) {
+                    poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+                }
+            }
 
-            case EAST -> poseStack.mulPose(Axis.XP.rotationDegrees(yaw));
-            case WEST -> poseStack.mulPose(Axis.XP.rotationDegrees(-yaw));
+            case WEST -> {
+                poseStack.mulPose(Axis.ZP.rotationDegrees(90.0F));
+
+                if (facing == Direction.SOUTH) {
+                    poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+                }
+            }
         }
     }
 
@@ -184,5 +188,11 @@ public final class AirBrakeRenderer implements net.minecraft.client.renderer.blo
             case WEST -> 270.0F;
             default -> 0.0F;
         };
+    }
+
+    private static float easeOutCubic(float value) {
+        value = Mth.clamp(value, 0.0F, 1.0F);
+        float inverse = 1.0F - value;
+        return 1.0F - inverse * inverse * inverse;
     }
 }
