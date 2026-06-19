@@ -1,22 +1,30 @@
 {
   "variants": {
-    "facing=down": {
-      "model": "pod_racing_addon:block/hover_repulsor"
-    },
     "facing=up": {
       "model": "pod_racing_addon:block/hover_repulsor"
     },
+    "facing=down": {
+      "model": "pod_racing_addon:block/hover_repulsor",
+      "x": 180
+    },
     "facing=north": {
-      "model": "pod_racing_addon:block/hover_repulsor"
+      "model": "pod_racing_addon:block/hover_repulsor",
+      "x": 90
     },
     "facing=south": {
-      "model": "pod_racing_addon:block/hover_repulsor"
+      "model": "pod_racing_addon:block/hover_repulsor",
+      "x": 90,
+      "y": 180
     },
     "facing=east": {
-      "model": "pod_racing_addon:block/hover_repulsor"
+      "model": "pod_racing_addon:block/hover_repulsor",
+      "x": 90,
+      "y": 90
     },
     "facing=west": {
-      "model": "pod_racing_addon:block/hover_repulsor"
+      "model": "pod_racing_addon:block/hover_repulsor",
+      "x": 90,
+      "y": 270
     }
   }
 }

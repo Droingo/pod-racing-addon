@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
@@ -26,14 +27,53 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class HoverRepulsorBlock extends BaseEntityBlock {
     public static final MapCodec<HoverRepulsorBlock> CODEC = simpleCodec(HoverRepulsorBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.FACING;
 
+    /*
+     * Small centered mount shapes.
+     *
+     * These are 12x12 wide and 6 pixels deep.
+     * They rotate based on the side of the block you place them on.
+     *
+     * If the model still feels too big/small, tweak the numbers here only.
+     */
+    private static final VoxelShape SHAPE_UP = Block.box(
+            2.0D, 0.0D, 2.0D,
+            14.0D, 6.0D, 14.0D
+    );
+
+    private static final VoxelShape SHAPE_DOWN = Block.box(
+            2.0D, 10.0D, 2.0D,
+            14.0D, 16.0D, 14.0D
+    );
+
+    private static final VoxelShape SHAPE_NORTH = Block.box(
+            2.0D, 2.0D, 10.0D,
+            14.0D, 14.0D, 16.0D
+    );
+
+    private static final VoxelShape SHAPE_SOUTH = Block.box(
+            2.0D, 2.0D, 0.0D,
+            14.0D, 14.0D, 6.0D
+    );
+
+    private static final VoxelShape SHAPE_EAST = Block.box(
+            0.0D, 2.0D, 2.0D,
+            6.0D, 14.0D, 14.0D
+    );
+
+    private static final VoxelShape SHAPE_WEST = Block.box(
+            10.0D, 2.0D, 2.0D,
+            16.0D, 14.0D, 14.0D
+    );
+
     public HoverRepulsorBlock(Properties properties) {
         super(properties);
-
         registerDefaultState(stateDefinition.any().setValue(FACING, Direction.DOWN));
     }
 
@@ -44,17 +84,52 @@ public final class HoverRepulsorBlock extends BaseEntityBlock {
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        /*
-         * Placement direction still controls the block model orientation.
-         * Hover physics now uses world-down/world-up internally, so rolling the craft
-         * no longer turns the hover off.
-         */
         return defaultBlockState().setValue(FACING, context.getClickedFace());
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(FACING);
+    }
+
+    @Override
+    protected VoxelShape getShape(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos,
+            CollisionContext context
+    ) {
+        return shapeForFacing(state.getValue(FACING));
+    }
+
+    @Override
+    protected VoxelShape getCollisionShape(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos,
+            CollisionContext context
+    ) {
+        return shapeForFacing(state.getValue(FACING));
+    }
+
+    @Override
+    protected VoxelShape getInteractionShape(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos
+    ) {
+        return shapeForFacing(state.getValue(FACING));
+    }
+
+    private static VoxelShape shapeForFacing(Direction facing) {
+        return switch (facing) {
+            case UP -> SHAPE_UP;
+            case DOWN -> SHAPE_DOWN;
+            case NORTH -> SHAPE_NORTH;
+            case SOUTH -> SHAPE_SOUTH;
+            case EAST -> SHAPE_EAST;
+            case WEST -> SHAPE_WEST;
+        };
     }
 
     @Override
@@ -134,9 +209,6 @@ public final class HoverRepulsorBlock extends BaseEntityBlock {
             }
         }
 
-        /*
-         * Non-shift right-click stays as a useful debug readout.
-         */
         boolean hasCorrectBlockEntity = blockEntity instanceof HoverRepulsorBlockEntity;
 
         boolean powered = false;
