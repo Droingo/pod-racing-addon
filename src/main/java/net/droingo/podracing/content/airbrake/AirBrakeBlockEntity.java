@@ -36,6 +36,8 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
     public static final int FREQUENCY_SLOT_COUNT = 2;
 
     private static final String TAG_FLAP_COLOR = "FlapColor";
+    private static final String TAG_DIRECT_SIGNAL = "DirectSignal";
+    private static final String TAG_WIRELESS_SIGNAL = "WirelessSignal";
 
     private static final double MIN_SPEED = 0.08D;
     private static final double SPEED_FOR_FULL_BRAKE = 4.0D;
@@ -43,14 +45,15 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
     private static final double MAX_BRAKE_IMPULSE = 75.0D;
     private static final double BRAKE_STRENGTH = 1.0D;
 
-    private static final float ANIMATION_OPEN_SPEED = 0.18F;
-    private static final float ANIMATION_CLOSE_SPEED = 0.14F;
+    private static final float ANIMATION_OPEN_RESPONSE = 0.075F;
+    private static final float ANIMATION_CLOSE_RESPONSE = 0.065F;
+    private static final float ANIMATION_SNAP_EPSILON = 0.002F;
 
     private DyeColor flapColor = DyeColor.RED;
 
     private final NonNullList<ItemStack> frequencyItems = NonNullList.withSize(FREQUENCY_SLOT_COUNT, ItemStack.EMPTY);
 
-    private boolean directlyPowered = false;
+    private int directRedstoneSignal = 0;
     private int receivedWirelessSignal = 0;
     private boolean createNetworkRegistered = false;
 
@@ -67,33 +70,44 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
 
     public static void tick(Level level, BlockPos pos, BlockState state, AirBrakeBlockEntity blockEntity) {
         if (level.isClientSide()) {
-            blockEntity.tickClientAnimation(state);
+            blockEntity.tickClientAnimation();
             return;
         }
 
         blockEntity.ensureCreateNetworkRegistration();
 
-        if ((level.getGameTime() & 3L) == 0L) {
-            blockEntity.setDirectlyPowered(level.hasNeighborSignal(pos));
-        }
+        int directSignal = level.getBestNeighborSignal(pos);
+        blockEntity.setDirectRedstoneSignal(directSignal);
 
         blockEntity.updatePoweredBlockState();
     }
 
-    private void tickClientAnimation(BlockState state) {
+    private void tickClientAnimation() {
         previousFlapOpenAmount = flapOpenAmount;
 
-        boolean powered = state.hasProperty(AirBrakeBlock.POWERED) && state.getValue(AirBrakeBlock.POWERED);
+        float target = (float) getBrakeAmount();
 
-        if (powered) {
-            flapOpenAmount = Math.min(1.0F, flapOpenAmount + ANIMATION_OPEN_SPEED);
-        } else {
-            flapOpenAmount = Math.max(0.0F, flapOpenAmount - ANIMATION_CLOSE_SPEED);
+        float response = target > flapOpenAmount
+                ? ANIMATION_OPEN_RESPONSE
+                : ANIMATION_CLOSE_RESPONSE;
+
+        flapOpenAmount += (target - flapOpenAmount) * response;
+
+        if (Math.abs(target - flapOpenAmount) <= ANIMATION_SNAP_EPSILON) {
+            flapOpenAmount = target;
         }
     }
 
     public float getFlapOpenAmount(float partialTick) {
         return previousFlapOpenAmount + (flapOpenAmount - previousFlapOpenAmount) * partialTick;
+    }
+
+    public int getBrakeSignal() {
+        return Math.max(directRedstoneSignal, receivedWirelessSignal);
+    }
+
+    public double getBrakeAmount() {
+        return clamp(getBrakeSignal() / 15.0D, 0.0D, 1.0D);
     }
 
     @Override
@@ -132,7 +146,9 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
             return;
         }
 
-        if (!isPowered()) {
+        double brakeAmount = getBrakeAmount();
+
+        if (brakeAmount <= 0.0D) {
             return;
         }
 
@@ -148,7 +164,7 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
 
         Vector3d worldVelocity = Sable.HELPER.getVelocity(level, new Vector3d(localAnchor));
 
-        if (!Double.isFinite(worldVelocity.x) || !Double.isFinite(worldVelocity.y) || !Double.isFinite(worldVelocity.z)) {
+        if (!isFiniteVector(worldVelocity)) {
             return;
         }
 
@@ -160,7 +176,7 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
 
         Vector3d localVelocity = subLevel.logicalPose().transformNormalInverse(worldVelocity);
 
-        if (localVelocity.lengthSquared() < 0.000001D) {
+        if (!isFiniteVector(localVelocity) || localVelocity.lengthSquared() < 0.000001D) {
             return;
         }
 
@@ -169,7 +185,7 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
         double speed01 = clamp(speed / SPEED_FOR_FULL_BRAKE, 0.0D, 1.0D);
         double stepScale = clamp(timeStep / 0.05D, 0.05D, 1.0D);
 
-        double deltaV = MAX_DELTA_V * speed01 * BRAKE_STRENGTH * stepScale;
+        double deltaV = MAX_DELTA_V * speed01 * BRAKE_STRENGTH * brakeAmount * stepScale;
 
         if (deltaV <= 0.0D) {
             return;
@@ -178,7 +194,11 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
         double effectiveMass = estimateEffectiveMass(subLevel, localAnchor, brakeDirection);
         double impulseMagnitude = effectiveMass * deltaV;
 
-        impulseMagnitude = clamp(impulseMagnitude, 0.0D, MAX_BRAKE_IMPULSE * BRAKE_STRENGTH);
+        impulseMagnitude = clamp(
+                impulseMagnitude,
+                0.0D,
+                MAX_BRAKE_IMPULSE * BRAKE_STRENGTH * brakeAmount
+        );
 
         if (!Double.isFinite(impulseMagnitude) || impulseMagnitude <= 0.00001D) {
             return;
@@ -211,29 +231,35 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
     }
 
     public boolean isPowered() {
-        return directlyPowered || receivedWirelessSignal > 0;
+        return getBrakeSignal() > 0;
     }
 
     public boolean isDirectlyPowered() {
-        return directlyPowered;
+        return directRedstoneSignal > 0;
+    }
+
+    public int getDirectRedstoneSignal() {
+        return directRedstoneSignal;
     }
 
     public int getReceivedWirelessSignal() {
         return receivedWirelessSignal;
     }
 
-    private void setDirectlyPowered(boolean directlyPowered) {
-        if (this.directlyPowered == directlyPowered) {
+    private void setDirectRedstoneSignal(int signal) {
+        signal = clampSignal(signal);
+
+        if (directRedstoneSignal == signal) {
             return;
         }
 
-        this.directlyPowered = directlyPowered;
+        directRedstoneSignal = signal;
         setChanged();
-        updatePoweredBlockState();
+        sendSyncUpdate();
     }
 
     private void setReceivedWirelessSignal(int signal) {
-        signal = Math.max(0, Math.min(15, signal));
+        signal = clampSignal(signal);
 
         if (receivedWirelessSignal == signal) {
             return;
@@ -242,6 +268,7 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
         receivedWirelessSignal = signal;
         setChanged();
         updatePoweredBlockState();
+        sendSyncUpdate();
     }
 
     private void updatePoweredBlockState() {
@@ -273,13 +300,7 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
 
         this.flapColor = flapColor;
         setChanged();
-
-        if (level instanceof ServerLevel serverLevel) {
-            serverLevel.getChunkSource().blockChanged(worldPosition);
-            serverLevel.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-        } else if (level != null) {
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-        }
+        sendSyncUpdate();
     }
 
     public int getFlapColorRgb() {
@@ -331,13 +352,7 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
 
         setChanged();
         updatePoweredBlockState();
-
-        if (level instanceof ServerLevel serverLevel) {
-            serverLevel.getChunkSource().blockChanged(worldPosition);
-            serverLevel.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-        } else {
-            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-        }
+        sendSyncUpdate();
     }
 
     private void unregisterFromCreateNetwork() {
@@ -352,6 +367,19 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
 
         Create.REDSTONE_LINK_NETWORK_HANDLER.removeFromNetwork(level, this);
         createNetworkRegistered = false;
+    }
+
+    private void sendSyncUpdate() {
+        if (level == null) {
+            return;
+        }
+
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.getChunkSource().blockChanged(worldPosition);
+            serverLevel.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        } else {
+            level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
     }
 
     @Override
@@ -426,6 +454,9 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
         super.saveAdditional(tag, registries);
 
         tag.putString(TAG_FLAP_COLOR, flapColor.getName());
+        tag.putInt(TAG_DIRECT_SIGNAL, directRedstoneSignal);
+        tag.putInt(TAG_WIRELESS_SIGNAL, receivedWirelessSignal);
+
         ContainerHelper.saveAllItems(tag, frequencyItems, registries);
     }
 
@@ -438,14 +469,22 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
             flapColor = loadedColor == null ? DyeColor.RED : loadedColor;
         }
 
+        if (tag.contains(TAG_DIRECT_SIGNAL)) {
+            directRedstoneSignal = clampSignal(tag.getInt(TAG_DIRECT_SIGNAL));
+        }
+
+        if (tag.contains(TAG_WIRELESS_SIGNAL)) {
+            receivedWirelessSignal = clampSignal(tag.getInt(TAG_WIRELESS_SIGNAL));
+        }
+
         frequencyItems.clear();
         ContainerHelper.loadAllItems(tag, frequencyItems, registries);
 
         createNetworkRegistered = false;
 
-        if (level == null || !level.isClientSide()) {
+        if (level != null && !level.isClientSide()) {
+            directRedstoneSignal = 0;
             receivedWirelessSignal = 0;
-            directlyPowered = false;
         }
     }
 
@@ -540,6 +579,28 @@ public final class AirBrakeBlockEntity extends BlockEntity implements BlockEntit
         frequencyItems.clear();
         setChanged();
         rebuildCreateNetworkRegistration();
+    }
+
+    private static int clampSignal(int signal) {
+        return Math.max(0, Math.min(15, signal));
+    }
+
+    private static boolean isFiniteVector(Vector3d vector) {
+        return Double.isFinite(vector.x)
+                && Double.isFinite(vector.y)
+                && Double.isFinite(vector.z);
+    }
+
+    private static float moveTowards(float current, float target, float maxStep) {
+        if (current < target) {
+            return Math.min(target, current + maxStep);
+        }
+
+        if (current > target) {
+            return Math.max(target, current - maxStep);
+        }
+
+        return current;
     }
 
     private static double clamp(double value, double min, double max) {

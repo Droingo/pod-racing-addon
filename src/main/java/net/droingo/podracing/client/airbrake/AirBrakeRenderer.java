@@ -81,7 +81,7 @@ public final class AirBrakeRenderer implements BlockEntityRenderer<AirBrakeBlock
                 packedOverlay
         );
 
-        float openAmount = easeOutCubic(airBrake.getFlapOpenAmount(partialTick));
+        float openAmount = Mth.clamp(airBrake.getFlapOpenAmount(partialTick), 0.0F, 1.0F);
 
         poseStack.pushPose();
         poseStack.translate(HINGE_X, HINGE_Y, HINGE_Z);
@@ -190,9 +190,4 @@ public final class AirBrakeRenderer implements BlockEntityRenderer<AirBrakeBlock
         };
     }
 
-    private static float easeOutCubic(float value) {
-        value = Mth.clamp(value, 0.0F, 1.0F);
-        float inverse = 1.0F - value;
-        return 1.0F - inverse * inverse * inverse;
     }
-}
