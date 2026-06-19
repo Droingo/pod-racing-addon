@@ -3,6 +3,7 @@ package net.droingo.podracing.registry;
 import net.droingo.podracing.PodRacingAddon;
 import net.droingo.podracing.content.airbrake.AirBrakeBlockEntity;
 import net.droingo.podracing.content.binder.BinderMountBlockEntity;
+import net.droingo.podracing.content.stabilizer.PodStabilizerBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
@@ -31,6 +32,14 @@ public final class PRBlockEntities {
                     BlockEntityType.Builder.of(
                             AirBrakeBlockEntity::new,
                             PRBlocks.AIR_BRAKE.get()
+                    ).build(null)
+            );
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PodStabilizerBlockEntity>> POD_STABILIZER =
+            BLOCK_ENTITIES.register("pod_stabilizer", () ->
+                    BlockEntityType.Builder.of(
+                            PodStabilizerBlockEntity::new,
+                            PRBlocks.POD_STABILIZER.get()
                     ).build(null)
             );
 

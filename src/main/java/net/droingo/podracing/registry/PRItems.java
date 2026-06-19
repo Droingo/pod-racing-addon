@@ -27,6 +27,9 @@ public final class PRItems {
     public static final DeferredItem<BlockItem> AIR_BRAKE =
             ITEMS.registerSimpleBlockItem(PRBlocks.AIR_BRAKE);
 
+    public static final DeferredItem<BlockItem> POD_STABILIZER =
+            ITEMS.registerSimpleBlockItem(PRBlocks.POD_STABILIZER);
+
 
     private PRItems() {
     }

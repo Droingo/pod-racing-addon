@@ -2,6 +2,7 @@ package net.droingo.podracing.registry;
 
 import net.droingo.podracing.PodRacingAddon;
 import net.droingo.podracing.content.binder.BinderMountBlock;
+import net.droingo.podracing.content.stabilizer.PodStabilizerBlock;
 import net.droingo.podracing.content.trophy.PodRaceTrophyBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -35,6 +36,16 @@ public final class PRBlocks {
                             .strength(2.0F, 6.0F)
                             .sound(SoundType.METAL)
             ));
+
+    public static final DeferredBlock<PodStabilizerBlock> POD_STABILIZER =
+            BLOCKS.registerBlock(
+                    "pod_stabilizer",
+                    PodStabilizerBlock::new,
+                    BlockBehaviour.Properties.of()
+                            .strength(1.5F, 6.0F)
+                            .sound(SoundType.METAL)
+                            .noOcclusion()
+            );
 
     public static final DeferredBlock<PodRaceTrophyBlock> POD_RACE_TROPHY =
             BLOCKS.registerBlock(

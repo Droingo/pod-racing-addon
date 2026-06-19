@@ -21,6 +21,7 @@ public final class PRCreativeTabs {
                         output.accept(PRItems.HOVER_REPULSOR.get());
                         output.accept(PRItems.AIR_BRAKE.get());
                         output.accept(PRItems.POD_RACE_TROPHY.get());
+                        output.accept(PRItems.POD_STABILIZER.get());
                     })
                     .build()
             );

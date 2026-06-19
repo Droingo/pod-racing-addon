@@ -8,6 +8,9 @@
   "item.pod_racing_addon.air_brake": "Air Brake",
   "menu.pod_racing_addon.air_brake": "Air Brake",
   "block.pod_racing_addon.pod_race_trophy": "Pod Race Trophy",
-  "item.pod_racing_addon.pod_race_trophy": "Pod Race Trophy"
+  "item.pod_racing_addon.pod_race_trophy": "Pod Race Trophy",
+  "block.pod_racing_addon.pod_stabilizer": "Pod Stabilizer",
+  "item.pod_racing_addon.pod_stabilizer": "Pod Stabilizer",
+  "menu.pod_racing_addon.pod_stabilizer": "Pod Stabilizer"
 
 }

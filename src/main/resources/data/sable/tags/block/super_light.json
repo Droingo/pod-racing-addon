@@ -3,6 +3,7 @@
   "values": [
     "pod_racing_addon:air_brake",
     "pod_racing_addon:hover_repulsor",
-    "pod_racing_addon:binder_mount"
+    "pod_racing_addon:binder_mount",
+    "pod_racing_addon:pod_stabilizer"
   ]
 }

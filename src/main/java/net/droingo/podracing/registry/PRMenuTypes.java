@@ -4,6 +4,7 @@ import net.droingo.podracing.PodRacingAddon;
 import net.droingo.podracing.content.airbrake.menu.AirBrakeMenu;
 import net.droingo.podracing.content.binder.menu.BinderMountMenu;
 import net.droingo.podracing.content.hover.menu.HoverRepulsorMenu;
+import net.droingo.podracing.content.stabilizer.menu.PodStabilizerMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
@@ -30,6 +31,12 @@ public final class PRMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<AirBrakeMenu>> AIR_BRAKE =
             MENUS.register("air_brake", () -> new MenuType<>(
                     AirBrakeMenu::new,
+                    FeatureFlags.DEFAULT_FLAGS
+            ));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<PodStabilizerMenu>> POD_STABILIZER =
+            MENUS.register("pod_stabilizer", () -> new MenuType<>(
+                    PodStabilizerMenu::new,
                     FeatureFlags.DEFAULT_FLAGS
             ));
 
