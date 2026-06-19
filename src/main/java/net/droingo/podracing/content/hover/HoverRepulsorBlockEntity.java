@@ -16,7 +16,6 @@ import net.droingo.podracing.registry.PRBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -72,6 +71,18 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
     private static final double MIN_VALID_HEIGHT = 0.05D;
     private static final double MIN_IMPULSE = 0.00001D;
+
+    /*
+     * 3x3 hover footprint.
+     *
+     * The old setup scanned only the block centre.
+     * This scans 9 points around the repulsor and spreads the same total force
+     * across the footprint so it behaves more like hover suspension.
+     */
+    private static final int SAMPLE_GRID_RADIUS = 1;
+    private static final int SAMPLE_POINT_COUNT = 9;
+    private static final double SAMPLE_SPACING = 0.75D;
+    private static final double SAMPLE_FORCE_SHARE = 1.0D / SAMPLE_POINT_COUNT;
 
     private double targetHeight = DEFAULT_TARGET_HEIGHT;
     private double raycastRange = DEFAULT_RAYCAST_RANGE;
@@ -134,39 +145,81 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
             return;
         }
 
-        Vec3 forcePoint = worldPosition.getCenter();
-        queuedForcePos.set(forcePoint.x, forcePoint.y, forcePoint.z);
+        Vec3 centreForcePoint = worldPosition.getCenter();
 
-        TerrainCastResult terrain = computeTerrainBelowWorldDown(subLevel, forcePoint);
+        boolean appliedAnyImpulse = false;
+        TerrainCastResult closestTerrainForEffect = null;
 
-        if (terrain == null) {
-            if (pendingActivationEffect) {
-                spawnActivationEffectAtBlock(subLevel, forcePoint);
-                pendingActivationEffect = false;
+        for (int sampleX = -SAMPLE_GRID_RADIUS; sampleX <= SAMPLE_GRID_RADIUS; sampleX++) {
+            for (int sampleZ = -SAMPLE_GRID_RADIUS; sampleZ <= SAMPLE_GRID_RADIUS; sampleZ++) {
+                Vec3 samplePoint = centreForcePoint.add(
+                        sampleX * SAMPLE_SPACING,
+                        0.0D,
+                        sampleZ * SAMPLE_SPACING
+                );
+
+                TerrainCastResult terrain = computeTerrainBelowWorldDown(subLevel, samplePoint);
+
+                if (terrain == null) {
+                    continue;
+                }
+
+                if (closestTerrainForEffect == null || terrain.height() < closestTerrainForEffect.height()) {
+                    closestTerrainForEffect = terrain;
+                }
+
+                if (applySampleImpulse(subLevel, samplePoint, terrain, timeStep)) {
+                    appliedAnyImpulse = true;
+                }
             }
-
-            return;
         }
 
         if (pendingActivationEffect) {
-            spawnActivationEffect(terrain);
+            if (closestTerrainForEffect != null) {
+                spawnActivationEffect(closestTerrainForEffect);
+            } else {
+                spawnActivationEffectAtBlock(subLevel, centreForcePoint);
+            }
+
             pendingActivationEffect = false;
         }
 
+        if (appliedAnyImpulse) {
+            handle.applyForcesAndReset(forceTotal);
+        }
+    }
+
+    private boolean applySampleImpulse(
+            ServerSubLevel subLevel,
+            Vec3 samplePoint,
+            TerrainCastResult terrain,
+            double timeStep
+    ) {
         double height = terrain.height();
 
         if (height < MIN_VALID_HEIGHT || height > raycastRange) {
-            return;
+            return false;
         }
 
         double supportTop = targetHeight + supportStartAboveTarget;
 
         if (height > supportTop) {
-            return;
+            return false;
         }
 
+        queuedForcePos.set(samplePoint.x, samplePoint.y, samplePoint.z);
+
         Vector3d velocity = Sable.HELPER.getVelocity(level, new Vector3d(queuedForcePos));
+
+        if (!isFiniteVector(velocity)) {
+            return false;
+        }
+
         Vector3d localVelocity = subLevel.logicalPose().transformNormalInverse(velocity);
+
+        if (!isFiniteVector(localVelocity)) {
+            return false;
+        }
 
         double verticalVelocity = localVelocity.dot(terrain.localWorldUp());
 
@@ -189,7 +242,7 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
         double deltaV = desiredVerticalVelocity - verticalVelocity;
 
         if (deltaV <= 0.0D) {
-            return;
+            return false;
         }
 
         double stepScale = clamp(timeStep / 0.05D, 0.05D, 1.0D);
@@ -207,17 +260,17 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
         double effectiveMass = estimateEffectiveMass(subLevel, terrain.localWorldUp());
 
-        double impulseMagnitude = effectiveMass * deltaV;
-        impulseMagnitude = clamp(impulseMagnitude, 0.0D, maxImpulse * strength);
+        double impulseMagnitude = effectiveMass * deltaV * SAMPLE_FORCE_SHARE;
+        impulseMagnitude = clamp(impulseMagnitude, 0.0D, maxImpulse * strength * SAMPLE_FORCE_SHARE);
 
         if (!Double.isFinite(impulseMagnitude) || impulseMagnitude < MIN_IMPULSE) {
-            return;
+            return false;
         }
 
         queuedForce.set(terrain.localWorldUp()).mul(impulseMagnitude);
 
         forceTotal.applyImpulseAtPoint(subLevel, queuedForcePos, queuedForce);
-        handle.applyForcesAndReset(forceTotal);
+        return true;
     }
 
     private TerrainCastResult computeTerrainBelowWorldDown(ServerSubLevel ownSubLevel, Vec3 localStart) {
@@ -765,6 +818,12 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
         frequencyItems.clear();
         setChanged();
         rebuildCreateNetworkRegistration();
+    }
+
+    private static boolean isFiniteVector(Vector3d vector) {
+        return Double.isFinite(vector.x)
+                && Double.isFinite(vector.y)
+                && Double.isFinite(vector.z);
     }
 
     private static int encodeConfig(double value) {

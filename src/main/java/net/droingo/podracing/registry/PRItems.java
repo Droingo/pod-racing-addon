@@ -18,6 +18,9 @@ public final class PRItems {
 
             ));
 
+    public static final DeferredItem<BlockItem> POD_RACE_TROPHY =
+            ITEMS.registerSimpleBlockItem(PRBlocks.POD_RACE_TROPHY);
+
     public static final DeferredItem<BlockItem> HOVER_REPULSOR =
             ITEMS.registerSimpleBlockItem(PRBlocks.HOVER_REPULSOR);
 
