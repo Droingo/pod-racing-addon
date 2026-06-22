@@ -256,12 +256,20 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
 
     @Override
     public float sable$getParallelDragScalar() {
-        return 0.0F;
+        /*
+         * Non-zero so Sable treats this as an active drag provider.
+         * Actual strength scaling still happens inside sable$contributeLiftAndDrag(...).
+         */
+        return MAX_PARALLEL_DRAG;
     }
 
     @Override
     public float sable$getDirectionlessDragScalar() {
-        return 0.0F;
+        /*
+         * Non-zero for the same reason. The custom contribution method still scales
+         * by the GUI strength value.
+         */
+        return MAX_DIRECTIONLESS_DRAG;
     }
 
     @Override
