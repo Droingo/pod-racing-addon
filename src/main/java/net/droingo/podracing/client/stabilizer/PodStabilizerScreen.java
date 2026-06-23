@@ -4,6 +4,7 @@ import net.droingo.podracing.content.stabilizer.menu.PodStabilizerMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
@@ -12,7 +13,7 @@ public final class PodStabilizerScreen extends AbstractContainerScreen<PodStabil
         super(menu, playerInventory, title);
 
         imageWidth = 176;
-        imageHeight = 92;
+        imageHeight = 100;
 
         titleLabelX = 8;
         titleLabelY = 8;
@@ -24,27 +25,22 @@ public final class PodStabilizerScreen extends AbstractContainerScreen<PodStabil
     protected void init() {
         super.init();
 
-        int buttonY = topPos + 54;
+        int buttonY = topPos + 56;
 
         addRenderableWidget(Button.builder(
-                Component.literal("-5"),
-                button -> sendButton(PodStabilizerMenu.BUTTON_STRENGTH_MINUS_5)
-        ).bounds(leftPos + 26, buttonY, 28, 20).build());
+                Component.literal("X"),
+                button -> sendButton(PodStabilizerMenu.BUTTON_AXIS_X)
+        ).bounds(leftPos + 28, buttonY, 34, 20).build());
 
         addRenderableWidget(Button.builder(
-                Component.literal("-"),
-                button -> sendButton(PodStabilizerMenu.BUTTON_STRENGTH_MINUS_1)
-        ).bounds(leftPos + 58, buttonY, 28, 20).build());
+                Component.literal("Y"),
+                button -> sendButton(PodStabilizerMenu.BUTTON_AXIS_Y)
+        ).bounds(leftPos + 71, buttonY, 34, 20).build());
 
         addRenderableWidget(Button.builder(
-                Component.literal("+"),
-                button -> sendButton(PodStabilizerMenu.BUTTON_STRENGTH_PLUS_1)
-        ).bounds(leftPos + 90, buttonY, 28, 20).build());
-
-        addRenderableWidget(Button.builder(
-                Component.literal("+5"),
-                button -> sendButton(PodStabilizerMenu.BUTTON_STRENGTH_PLUS_5)
-        ).bounds(leftPos + 122, buttonY, 28, 20).build());
+                Component.literal("Z"),
+                button -> sendButton(PodStabilizerMenu.BUTTON_AXIS_Z)
+        ).bounds(leftPos + 114, buttonY, 34, 20).build());
     }
 
     private void sendButton(int buttonId) {
@@ -70,18 +66,25 @@ public final class PodStabilizerScreen extends AbstractContainerScreen<PodStabil
         guiGraphics.fill(left, top, left + imageWidth, top + imageHeight, 0xEE101010);
         guiGraphics.fill(left + 1, top + 1, left + imageWidth - 1, top + imageHeight - 1, 0xEE252525);
 
-        int strength = menu.getStrength();
+        int axisIndex = menu.getPhysicsAxisIndex();
 
-        int barX = left + 18;
-        int barY = top + 35;
-        int barWidth = 140;
-        int barHeight = 10;
+        int indicatorY = top + 80;
+        int indicatorWidth = 34;
+        int indicatorHeight = 4;
 
-        guiGraphics.fill(barX, barY, barX + barWidth, barY + barHeight, 0xFF111111);
-        guiGraphics.fill(barX + 1, barY + 1, barX + barWidth - 1, barY + barHeight - 1, 0xFF3A3A3A);
+        int indicatorX = switch (axisIndex) {
+            case 1 -> left + 71;
+            case 2 -> left + 114;
+            default -> left + 28;
+        };
 
-        int filledWidth = Math.round((barWidth - 2) * (strength / 15.0F));
-        guiGraphics.fill(barX + 1, barY + 1, barX + 1 + filledWidth, barY + barHeight - 1, 0xFF7FD7FF);
+        guiGraphics.fill(
+                indicatorX,
+                indicatorY,
+                indicatorX + indicatorWidth,
+                indicatorY + indicatorHeight,
+                0xFF7FD7FF
+        );
     }
 
     @Override
@@ -95,22 +98,31 @@ public final class PodStabilizerScreen extends AbstractContainerScreen<PodStabil
                 false
         );
 
-        int strength = menu.getStrength();
+        Direction.Axis axis = menu.getPhysicsAxis();
 
         guiGraphics.drawString(
                 font,
-                Component.literal("Stabilizer strength: " + strength + " / 15"),
+                Component.literal("Physics axis: " + axis.getName().toUpperCase()),
                 18,
-                22,
+                24,
                 0xDADADA,
                 false
         );
 
         guiGraphics.drawString(
                 font,
-                Component.literal("Higher = more drag stability"),
+                Component.literal("Wrench rotates the visible fin."),
                 18,
-                76,
+                38,
+                0x9A9A9A,
+                false
+        );
+
+        guiGraphics.drawString(
+                font,
+                Component.literal("GUI changes the stabilizer direction."),
+                18,
+                86,
                 0x8A8A8A,
                 false
         );
