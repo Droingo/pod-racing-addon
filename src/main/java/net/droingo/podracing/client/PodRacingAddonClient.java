@@ -6,6 +6,7 @@ import net.droingo.podracing.client.airbrake.AirBrakeScreen;
 import net.droingo.podracing.client.binder.BinderMountScreen;
 import net.droingo.podracing.client.binder.EnergyBinderWorldRenderer;
 import net.droingo.podracing.client.hover.HoverRepulsorScreen;
+import net.droingo.podracing.client.stabilizer.PodStabilizerRenderer;
 import net.droingo.podracing.client.stabilizer.PodStabilizerScreen;
 import net.droingo.podracing.registry.PRBlockEntities;
 import net.droingo.podracing.registry.PRMenuTypes;
@@ -47,6 +48,7 @@ public final class PodRacingAddonClient {
             event.register(PRMenuTypes.HOVER_REPULSOR.get(), HoverRepulsorScreen::new);
             event.register(PRMenuTypes.AIR_BRAKE.get(), AirBrakeScreen::new);
             event.register(PRMenuTypes.POD_STABILIZER.get(), PodStabilizerScreen::new);
+
         }
 
         @SubscribeEvent
@@ -54,6 +56,10 @@ public final class PodRacingAddonClient {
             event.registerBlockEntityRenderer(
                     PRBlockEntities.AIR_BRAKE.get(),
                     AirBrakeRenderer::new
+            );
+            event.registerBlockEntityRenderer(
+                    PRBlockEntities.POD_STABILIZER.get(),
+                    PodStabilizerRenderer::new
             );
         }
 
@@ -63,6 +69,12 @@ public final class PodRacingAddonClient {
                     ResourceLocation.fromNamespaceAndPath(
                             PodRacingAddon.MOD_ID,
                             "block/air_brake_base"
+                    )
+            ));
+            event.register(ModelResourceLocation.standalone(
+                    ResourceLocation.fromNamespaceAndPath(
+                            PodRacingAddon.MOD_ID,
+                            "block/pod_stabilizer"
                     )
             ));
 

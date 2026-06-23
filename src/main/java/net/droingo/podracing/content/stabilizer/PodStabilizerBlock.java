@@ -41,49 +41,53 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
     public static final MapCodec<PodStabilizerBlock> CODEC = simpleCodec(PodStabilizerBlock::new);
 
     /*
-     * AXIS is the important physics property.
-     * Sable reads this like a symmetrical sail.
+     * AXIS is the real Sable/symmetrical-sail physics axis.
+     * Keep this. This is why the physics is now working.
      */
     public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.AXIS;
 
     /*
-     * FACING is only visual/model roll around the active AXIS.
-     * It must always be perpendicular to AXIS.
+     * MOUNT_FACE is visual placement only:
+     * UP = floor
+     * DOWN = ceiling
+     * NORTH/SOUTH/EAST/WEST = wall-mounted
      */
-    public static final DirectionProperty FACING = DirectionProperty.create("facing");
+    public static final DirectionProperty MOUNT_FACE = DirectionProperty.create("mount_face");
 
     /*
-     * Kept for GUI for now.
-     * This proof version uses fixed sail drag so we can lock placement/model first.
+     * ROLL is visual rotation around the mounted face.
+     * Wrench cycles this 0 -> 1 -> 2 -> 3.
+     */
+    public static final IntegerProperty ROLL = IntegerProperty.create("roll", 0, 3);
+
+    /*
+     * GUI value. Physics still uses fixed native sail drag for now.
      */
     public static final IntegerProperty STRENGTH = IntegerProperty.create("strength", 0, 15);
 
     public static final int DEFAULT_STRENGTH = 6;
 
     /*
-     * 1.75F = roughly one real symmetrical sail.
-     * 7.0F = about four sails in one block.
+     * Symmetric sail is about 1.75F.
+     * 7.0F means this one clean block behaves like several sails.
      */
     private static final float PARALLEL_DRAG = 7.0F;
     private static final float DIRECTIONLESS_DRAG = 0.06888202261F;
 
     /*
-     * Simple broad hitboxes. These follow the visible roll direction, not just the physics axis.
-     * We can tighten these later once the visual orientation is locked.
+     * Big simple selection box. This is intentionally not fin-shaped.
      */
-    private static final VoxelShape SHAPE_FACING_X = Block.box(
-            0.0D, 2.0D, 3.0D,
-            16.0D, 14.0D, 13.0D
+    private static final VoxelShape SELECTION_SHAPE = Block.box(
+            -4.0D, -4.0D, -4.0D,
+            20.0D, 20.0D, 20.0D
     );
 
-    private static final VoxelShape SHAPE_FACING_Y = Block.box(
-            3.0D, 0.0D, 3.0D,
-            13.0D, 16.0D, 13.0D
-    );
-
-    private static final VoxelShape SHAPE_FACING_Z = Block.box(
-            3.0D, 2.0D, 0.0D,
-            13.0D, 14.0D, 16.0D
+    /*
+     * Collision kept sane so the block does not become an annoying invisible wall.
+     */
+    private static final VoxelShape COLLISION_SHAPE = Block.box(
+            0.0D, 0.0D, 0.0D,
+            16.0D, 16.0D, 16.0D
     );
 
     public PodStabilizerBlock(Properties properties) {
@@ -91,7 +95,8 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
 
         registerDefaultState(stateDefinition.any()
                 .setValue(AXIS, Direction.Axis.X)
-                .setValue(FACING, Direction.NORTH)
+                .setValue(MOUNT_FACE, Direction.UP)
+                .setValue(ROLL, 0)
                 .setValue(STRENGTH, DEFAULT_STRENGTH));
     }
 
@@ -102,40 +107,63 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        Direction clickedFace = context.getClickedFace();
+        Direction mountFace = context.getClickedFace();
         Direction playerFacing = context.getHorizontalDirection().getOpposite();
 
-        Direction.Axis axis;
-        Direction facing;
-
-        if (clickedFace == Direction.UP || clickedFace == Direction.DOWN) {
-            /*
-             * Floor/ceiling:
-             * Put the fin upright and make its physics axis horizontal.
-             *
-             * Looking north/south gives X-axis drag.
-             * Looking east/west gives Z-axis drag.
-             */
-            axis = playerFacing.getClockWise().getAxis();
-            facing = coerceFacingForAxis(playerFacing, axis);
-        } else {
-            /*
-             * Wall placement:
-             * Use the wall's axis as the sail normal, then start with the fin visually upright.
-             */
-            axis = clickedFace.getAxis();
-            facing = coerceFacingForAxis(Direction.UP, axis);
-        }
+        int roll = initialRollForPlacement(mountFace, playerFacing);
+        Direction.Axis axis = axisForMountAndRoll(mountFace, roll);
 
         return defaultBlockState()
+                .setValue(MOUNT_FACE, mountFace)
+                .setValue(ROLL, roll)
                 .setValue(AXIS, axis)
-                .setValue(FACING, facing)
                 .setValue(STRENGTH, DEFAULT_STRENGTH);
+    }
+
+    /*
+     * Floor/ceiling placement:
+     * make the model face the player by default.
+     *
+     * Wall placement:
+     * model mounts to the wall and starts upright.
+     */
+    private static int initialRollForPlacement(Direction mountFace, Direction playerFacing) {
+        if (mountFace == Direction.UP || mountFace == Direction.DOWN) {
+            return switch (playerFacing) {
+                case EAST -> 1;
+                case SOUTH -> 2;
+                case WEST -> 3;
+                default -> 0;
+            };
+        }
+
+        return 0;
+    }
+
+    /*
+     * This keeps the working Sable sail physics matched to the visual orientation.
+     *
+     * Floor/ceiling:
+     * roll 0/2 = X axis
+     * roll 1/3 = Z axis
+     *
+     * Wall:
+     * the sail normal is the wall axis, and rolling the visual model around the wall
+     * does not change that physics axis.
+     */
+    private static Direction.Axis axisForMountAndRoll(Direction mountFace, int roll) {
+        if (mountFace == Direction.UP || mountFace == Direction.DOWN) {
+            return (roll & 1) == 0
+                    ? Direction.Axis.X
+                    : Direction.Axis.Z;
+        }
+
+        return mountFace.getAxis();
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(AXIS, FACING, STRENGTH);
+        builder.add(AXIS, MOUNT_FACE, ROLL, STRENGTH);
     }
 
     @Override
@@ -145,7 +173,7 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
             BlockPos pos,
             CollisionContext context
     ) {
-        return shapeForFacing(state.getValue(FACING));
+        return SELECTION_SHAPE;
     }
 
     @Override
@@ -155,20 +183,15 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
             BlockPos pos,
             CollisionContext context
     ) {
-        return shapeForFacing(state.getValue(FACING));
-    }
-
-    private static VoxelShape shapeForFacing(Direction facing) {
-        return switch (facing.getAxis()) {
-            case X -> SHAPE_FACING_X;
-            case Y -> SHAPE_FACING_Y;
-            case Z -> SHAPE_FACING_Z;
-        };
+        return COLLISION_SHAPE;
     }
 
     @Override
     protected RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+        /*
+         * Model is drawn by PodStabilizerRenderer.
+         */
+        return RenderShape.INVISIBLE;
     }
 
     @Override
@@ -194,9 +217,9 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
         }
 
         if (player.isShiftKeyDown()) {
-            cyclePhysicsAxis(serverLevel, pos, state, player);
+            pickup(serverLevel, pos, state, player);
         } else {
-            rotateVisualFacing(serverLevel, pos, state, player);
+            rotateWithWrench(serverLevel, pos, state, player);
         }
 
         return ItemInteractionResult.CONSUME;
@@ -231,17 +254,21 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
 
         if (blockEntity instanceof PodStabilizerBlockEntity stabilizer) {
             Direction.Axis axis = state.getValue(AXIS);
-            Direction facing = state.getValue(FACING);
+            Direction mountFace = state.getValue(MOUNT_FACE);
+            int roll = state.getValue(ROLL);
+            int strength = state.getValue(STRENGTH);
 
             serverPlayer.displayClientMessage(
                     Component.literal("Pod Stabilizer: ")
                             .withStyle(ChatFormatting.AQUA)
-                            .append(Component.literal("Axis=" + axis.getName() + ", ")
+                            .append(Component.literal("Mount=" + mountFace.getName() + ", ")
                                     .withStyle(ChatFormatting.YELLOW))
-                            .append(Component.literal("Facing=" + facing.getName() + ", ")
+                            .append(Component.literal("Axis=" + axis.getName() + ", ")
                                     .withStyle(ChatFormatting.GREEN))
-                            .append(Component.literal("Drag=" + PARALLEL_DRAG + "x")
-                                    .withStyle(ChatFormatting.LIGHT_PURPLE)),
+                            .append(Component.literal("Roll=" + roll + ", ")
+                                    .withStyle(ChatFormatting.LIGHT_PURPLE))
+                            .append(Component.literal("Strength=" + strength + "/15")
+                                    .withStyle(ChatFormatting.GRAY)),
                     false
             );
 
@@ -253,95 +280,23 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
         return InteractionResult.CONSUME;
     }
 
-    private static void rotateVisualFacing(ServerLevel level, BlockPos pos, BlockState state, Player player) {
-        Direction.Axis axis = state.getValue(AXIS);
-        Direction currentFacing = state.getValue(FACING);
-        Direction nextFacing = nextFacingAroundAxis(axis, currentFacing);
+    private static void rotateWithWrench(ServerLevel level, BlockPos pos, BlockState state, Player player) {
+        Direction mountFace = state.getValue(MOUNT_FACE);
 
-        level.setBlock(pos, state.setValue(FACING, nextFacing), 3);
+        int currentRoll = state.getValue(ROLL);
+        int nextRoll = (currentRoll + 1) & 3;
+
+        Direction.Axis nextAxis = axisForMountAndRoll(mountFace, nextRoll);
+
+        level.setBlock(pos, state
+                .setValue(ROLL, nextRoll)
+                .setValue(AXIS, nextAxis), 3);
 
         player.displayClientMessage(
-                Component.literal("Pod Stabilizer facing: " + nextFacing.getName())
+                Component.literal("Pod Stabilizer roll: " + nextRoll)
                         .withStyle(ChatFormatting.AQUA),
                 true
         );
-    }
-
-    private static void cyclePhysicsAxis(ServerLevel level, BlockPos pos, BlockState state, Player player) {
-        Direction.Axis currentAxis = state.getValue(AXIS);
-        Direction currentFacing = state.getValue(FACING);
-
-        Direction.Axis nextAxis = switch (currentAxis) {
-            case X -> Direction.Axis.Z;
-            case Z -> Direction.Axis.Y;
-            case Y -> Direction.Axis.X;
-        };
-
-        Direction nextFacing = coerceFacingForAxis(currentFacing, nextAxis);
-
-        level.setBlock(pos, state
-                .setValue(AXIS, nextAxis)
-                .setValue(FACING, nextFacing), 3);
-
-        player.displayClientMessage(
-                Component.literal("Pod Stabilizer physics axis: " + nextAxis.getName())
-                        .withStyle(ChatFormatting.YELLOW),
-                true
-        );
-    }
-
-    private static Direction nextFacingAroundAxis(Direction.Axis axis, Direction currentFacing) {
-        Direction[] valid = validFacingsForAxis(axis);
-
-        for (int i = 0; i < valid.length; i++) {
-            if (valid[i] == currentFacing) {
-                return valid[(i + 1) % valid.length];
-            }
-        }
-
-        return valid[0];
-    }
-
-    private static Direction coerceFacingForAxis(Direction requestedFacing, Direction.Axis axis) {
-        if (requestedFacing.getAxis() != axis) {
-            return requestedFacing;
-        }
-
-        return validFacingsForAxis(axis)[0];
-    }
-
-    private static Direction[] validFacingsForAxis(Direction.Axis axis) {
-        return switch (axis) {
-            /*
-             * Physics normal is X, so model can roll toward north/up/south/down.
-             */
-            case X -> new Direction[]{
-                    Direction.NORTH,
-                    Direction.UP,
-                    Direction.SOUTH,
-                    Direction.DOWN
-            };
-
-            /*
-             * Physics normal is Y, so model can face around the floor plane.
-             */
-            case Y -> new Direction[]{
-                    Direction.NORTH,
-                    Direction.EAST,
-                    Direction.SOUTH,
-                    Direction.WEST
-            };
-
-            /*
-             * Physics normal is Z, so model can roll toward east/up/west/down.
-             */
-            case Z -> new Direction[]{
-                    Direction.EAST,
-                    Direction.UP,
-                    Direction.WEST,
-                    Direction.DOWN
-            };
-        };
     }
 
     private static void pickup(ServerLevel level, BlockPos pos, BlockState state, Player player) {
@@ -365,7 +320,8 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
     }
 
     /*
-     * Symmetric-sail style Sable physics.
+     * Native symmetrical-sail-style Sable physics.
+     * Do not replace this with manual impulses.
      */
 
     @Override
