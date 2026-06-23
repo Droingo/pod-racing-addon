@@ -25,10 +25,7 @@ public final class PodStabilizerRenderer implements BlockEntityRenderer<PodStabi
     );
 
     /*
-     * Change only this if the model is consistently 90 degrees off.
-     *
-     * If it still faces right when placed on the ground, try -90.0F.
-     * If it faces backwards, try 180.0F.
+     * Change this only if the whole model is consistently 90/180 degrees off.
      */
     private static final float MODEL_YAW_OFFSET_DEGREES = 0.0F;
 
@@ -62,11 +59,15 @@ public final class PodStabilizerRenderer implements BlockEntityRenderer<PodStabi
         poseStack.translate(0.5D, 0.5D, 0.5D);
 
         /*
-         * First attach the model to the correct face.
-         * Then rotate 0/90/180/270 around that mounted face.
+         * Important:
+         * Apply the mount transform first, then roll around the model's native Y axis.
+         *
+         * This makes the fin rotate flat on its own base first, then the whole
+         * model gets mounted to the floor/wall/ceiling. That keeps the base stuck
+         * to the wall instead of tipping vertically away from it.
          */
         applyMountTransform(poseStack, mountFace);
-        poseStack.mulPose(Axis.YP.rotationDegrees((roll * 90.0F) + MODEL_YAW_OFFSET_DEGREES));
+        applyNativeRollTransform(poseStack, roll);
 
         poseStack.translate(-0.5D, -0.5D, -0.5D);
 
@@ -111,8 +112,7 @@ public final class PodStabilizerRenderer implements BlockEntityRenderer<PodStabi
 
     /*
      * Native model assumption:
-     * - your Blockbench model is authored as a floor-mounted model.
-     * - roll=0 is its default forward direction.
+     * Your Blockbench model is authored as a floor-mounted model.
      */
     private static void applyMountTransform(PoseStack poseStack, Direction mountFace) {
         switch (mountFace) {
@@ -145,5 +145,27 @@ public final class PodStabilizerRenderer implements BlockEntityRenderer<PodStabi
                 poseStack.mulPose(Axis.ZP.rotationDegrees(90.0F));
             }
         }
+    }
+
+    /*
+     * This is the key fix.
+     *
+     * Do NOT roll around Z for north/south walls or X for east/west walls.
+     * That makes the fin tip vertically.
+     *
+     * Always roll around the model's native Y axis. Since this is applied after
+     * the mount transform in the PoseStack, it behaves like rotating the model
+     * on its base before mounting it.
+     */
+    private static void applyNativeRollTransform(PoseStack poseStack, int roll) {
+        float degrees = (((roll % 4) + 4) % 4) * 90.0F;
+
+        float finalDegrees = degrees + MODEL_YAW_OFFSET_DEGREES;
+
+        if (finalDegrees == 0.0F) {
+            return;
+        }
+
+        poseStack.mulPose(Axis.YP.rotationDegrees(finalDegrees));
     }
 }
