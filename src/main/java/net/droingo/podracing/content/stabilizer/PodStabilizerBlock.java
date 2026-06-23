@@ -2,13 +2,8 @@ package net.droingo.podracing.content.stabilizer;
 
 import com.mojang.serialization.MapCodec;
 import dev.ryanhcode.sable.api.block.BlockSubLevelLiftProvider;
-import dev.ryanhcode.sable.api.block.BlockSubLevelLiftProvider.LiftProviderContext;
-import dev.ryanhcode.sable.api.block.BlockSubLevelLiftProvider.LiftProviderGroup;
-import dev.ryanhcode.sable.companion.math.Pose3d;
-import dev.ryanhcode.sable.physics.config.dimension_physics.DimensionPhysicsData;
-import dev.ryanhcode.sable.sublevel.ServerSubLevel;
-import net.droingo.podracing.registry.PRBlockEntities;
 import net.droingo.podracing.util.PRItemChecks;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -35,35 +30,67 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.joml.Vector3d;
-import org.joml.Vector3dc;
 
 public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSubLevelLiftProvider {
     public static final MapCodec<PodStabilizerBlock> CODEC = simpleCodec(PodStabilizerBlock::new);
 
-    public static final DirectionProperty MOUNT_FACE = DirectionProperty.create("mount_face");
-    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+    /*
+     * AXIS is the important physics property.
+     * Sable reads this like a symmetrical sail.
+     */
+    public static final EnumProperty<Direction.Axis> AXIS = BlockStateProperties.AXIS;
+
+    /*
+     * FACING is only visual/model roll around the active AXIS.
+     * It must always be perpendicular to AXIS.
+     */
+    public static final DirectionProperty FACING = DirectionProperty.create("facing");
+
+    /*
+     * Kept for GUI for now.
+     * This proof version uses fixed sail drag so we can lock placement/model first.
+     */
     public static final IntegerProperty STRENGTH = IntegerProperty.create("strength", 0, 15);
 
     public static final int DEFAULT_STRENGTH = 6;
 
-    private static final float MAX_PARALLEL_DRAG = 7.0F;
-    private static final float MAX_DIRECTIONLESS_DRAG = 0.12F;
+    /*
+     * 1.75F = roughly one real symmetrical sail.
+     * 7.0F = about four sails in one block.
+     */
+    private static final float PARALLEL_DRAG = 7.0F;
+    private static final float DIRECTIONLESS_DRAG = 0.06888202261F;
 
-    private static final VoxelShape SHAPE_NORTH_SOUTH = Block.box(3.0D, 2.0D, 0.0D, 13.0D, 14.0D, 16.0D);
-    private static final VoxelShape SHAPE_EAST_WEST = Block.box(0.0D, 2.0D, 3.0D, 16.0D, 14.0D, 13.0D);
+    /*
+     * Simple broad hitboxes. These follow the visible roll direction, not just the physics axis.
+     * We can tighten these later once the visual orientation is locked.
+     */
+    private static final VoxelShape SHAPE_FACING_X = Block.box(
+            0.0D, 2.0D, 3.0D,
+            16.0D, 14.0D, 13.0D
+    );
+
+    private static final VoxelShape SHAPE_FACING_Y = Block.box(
+            3.0D, 0.0D, 3.0D,
+            13.0D, 16.0D, 13.0D
+    );
+
+    private static final VoxelShape SHAPE_FACING_Z = Block.box(
+            3.0D, 2.0D, 0.0D,
+            13.0D, 14.0D, 16.0D
+    );
 
     public PodStabilizerBlock(Properties properties) {
         super(properties);
 
         registerDefaultState(stateDefinition.any()
-                .setValue(MOUNT_FACE, Direction.UP)
+                .setValue(AXIS, Direction.Axis.X)
                 .setValue(FACING, Direction.NORTH)
                 .setValue(STRENGTH, DEFAULT_STRENGTH));
     }
@@ -75,33 +102,40 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
 
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        Direction mountFace = context.getClickedFace();
-        Direction facing = defaultFacingForMount(
-                mountFace,
-                context.getHorizontalDirection().getOpposite()
-        );
+        Direction clickedFace = context.getClickedFace();
+        Direction playerFacing = context.getHorizontalDirection().getOpposite();
+
+        Direction.Axis axis;
+        Direction facing;
+
+        if (clickedFace == Direction.UP || clickedFace == Direction.DOWN) {
+            /*
+             * Floor/ceiling:
+             * Put the fin upright and make its physics axis horizontal.
+             *
+             * Looking north/south gives X-axis drag.
+             * Looking east/west gives Z-axis drag.
+             */
+            axis = playerFacing.getClockWise().getAxis();
+            facing = coerceFacingForAxis(playerFacing, axis);
+        } else {
+            /*
+             * Wall placement:
+             * Use the wall's axis as the sail normal, then start with the fin visually upright.
+             */
+            axis = clickedFace.getAxis();
+            facing = coerceFacingForAxis(Direction.UP, axis);
+        }
 
         return defaultBlockState()
-                .setValue(MOUNT_FACE, mountFace)
+                .setValue(AXIS, axis)
                 .setValue(FACING, facing)
                 .setValue(STRENGTH, DEFAULT_STRENGTH);
     }
 
-    private static Direction defaultFacingForMount(Direction mountFace, Direction playerFacing) {
-        if (mountFace == Direction.UP || mountFace == Direction.DOWN) {
-            return playerFacing;
-        }
-
-        if (mountFace == Direction.NORTH || mountFace == Direction.SOUTH) {
-            return playerFacing == Direction.WEST ? Direction.WEST : Direction.EAST;
-        }
-
-        return playerFacing == Direction.SOUTH ? Direction.SOUTH : Direction.NORTH;
-    }
-
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(MOUNT_FACE, FACING, STRENGTH);
+        builder.add(AXIS, FACING, STRENGTH);
     }
 
     @Override
@@ -125,9 +159,11 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
     }
 
     private static VoxelShape shapeForFacing(Direction facing) {
-        return facing == Direction.EAST || facing == Direction.WEST
-                ? SHAPE_EAST_WEST
-                : SHAPE_NORTH_SOUTH;
+        return switch (facing.getAxis()) {
+            case X -> SHAPE_FACING_X;
+            case Y -> SHAPE_FACING_Y;
+            case Z -> SHAPE_FACING_Z;
+        };
     }
 
     @Override
@@ -145,25 +181,25 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
             InteractionHand hand,
             BlockHitResult hitResult
     ) {
-        if (PRItemChecks.isCreateWrench(stack)) {
-            if (level.isClientSide()) {
-                return ItemInteractionResult.SUCCESS;
-            }
+        if (!PRItemChecks.isCreateWrench(stack)) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
 
-            if (!(level instanceof ServerLevel serverLevel)) {
-                return ItemInteractionResult.CONSUME;
-            }
+        if (level.isClientSide()) {
+            return ItemInteractionResult.SUCCESS;
+        }
 
-            if (player.isShiftKeyDown()) {
-                pickup(serverLevel, pos, state, player);
-            } else {
-                rotateFacing(serverLevel, pos, state);
-            }
-
+        if (!(level instanceof ServerLevel serverLevel)) {
             return ItemInteractionResult.CONSUME;
         }
 
-        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        if (player.isShiftKeyDown()) {
+            cyclePhysicsAxis(serverLevel, pos, state, player);
+        } else {
+            rotateVisualFacing(serverLevel, pos, state, player);
+        }
+
+        return ItemInteractionResult.CONSUME;
     }
 
     @Override
@@ -194,6 +230,21 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
         BlockEntity blockEntity = level.getBlockEntity(pos);
 
         if (blockEntity instanceof PodStabilizerBlockEntity stabilizer) {
+            Direction.Axis axis = state.getValue(AXIS);
+            Direction facing = state.getValue(FACING);
+
+            serverPlayer.displayClientMessage(
+                    Component.literal("Pod Stabilizer: ")
+                            .withStyle(ChatFormatting.AQUA)
+                            .append(Component.literal("Axis=" + axis.getName() + ", ")
+                                    .withStyle(ChatFormatting.YELLOW))
+                            .append(Component.literal("Facing=" + facing.getName() + ", ")
+                                    .withStyle(ChatFormatting.GREEN))
+                            .append(Component.literal("Drag=" + PARALLEL_DRAG + "x")
+                                    .withStyle(ChatFormatting.LIGHT_PURPLE)),
+                    false
+            );
+
             serverPlayer.openMenu(stabilizer);
             return InteractionResult.CONSUME;
         }
@@ -202,25 +253,94 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
         return InteractionResult.CONSUME;
     }
 
-    private static void rotateFacing(ServerLevel level, BlockPos pos, BlockState state) {
-        Direction mountFace = state.getValue(MOUNT_FACE);
+    private static void rotateVisualFacing(ServerLevel level, BlockPos pos, BlockState state, Player player) {
+        Direction.Axis axis = state.getValue(AXIS);
         Direction currentFacing = state.getValue(FACING);
-        Direction nextFacing = nextFacingForMount(mountFace, currentFacing);
+        Direction nextFacing = nextFacingAroundAxis(axis, currentFacing);
 
         level.setBlock(pos, state.setValue(FACING, nextFacing), 3);
+
+        player.displayClientMessage(
+                Component.literal("Pod Stabilizer facing: " + nextFacing.getName())
+                        .withStyle(ChatFormatting.AQUA),
+                true
+        );
     }
 
-    private static Direction nextFacingForMount(Direction mountFace, Direction currentFacing) {
-        return switch (mountFace) {
-            case UP, DOWN -> currentFacing.getClockWise();
+    private static void cyclePhysicsAxis(ServerLevel level, BlockPos pos, BlockState state, Player player) {
+        Direction.Axis currentAxis = state.getValue(AXIS);
+        Direction currentFacing = state.getValue(FACING);
 
-            case NORTH, SOUTH -> currentFacing == Direction.EAST
-                    ? Direction.WEST
-                    : Direction.EAST;
+        Direction.Axis nextAxis = switch (currentAxis) {
+            case X -> Direction.Axis.Z;
+            case Z -> Direction.Axis.Y;
+            case Y -> Direction.Axis.X;
+        };
 
-            case EAST, WEST -> currentFacing == Direction.NORTH
-                    ? Direction.SOUTH
-                    : Direction.NORTH;
+        Direction nextFacing = coerceFacingForAxis(currentFacing, nextAxis);
+
+        level.setBlock(pos, state
+                .setValue(AXIS, nextAxis)
+                .setValue(FACING, nextFacing), 3);
+
+        player.displayClientMessage(
+                Component.literal("Pod Stabilizer physics axis: " + nextAxis.getName())
+                        .withStyle(ChatFormatting.YELLOW),
+                true
+        );
+    }
+
+    private static Direction nextFacingAroundAxis(Direction.Axis axis, Direction currentFacing) {
+        Direction[] valid = validFacingsForAxis(axis);
+
+        for (int i = 0; i < valid.length; i++) {
+            if (valid[i] == currentFacing) {
+                return valid[(i + 1) % valid.length];
+            }
+        }
+
+        return valid[0];
+    }
+
+    private static Direction coerceFacingForAxis(Direction requestedFacing, Direction.Axis axis) {
+        if (requestedFacing.getAxis() != axis) {
+            return requestedFacing;
+        }
+
+        return validFacingsForAxis(axis)[0];
+    }
+
+    private static Direction[] validFacingsForAxis(Direction.Axis axis) {
+        return switch (axis) {
+            /*
+             * Physics normal is X, so model can roll toward north/up/south/down.
+             */
+            case X -> new Direction[]{
+                    Direction.NORTH,
+                    Direction.UP,
+                    Direction.SOUTH,
+                    Direction.DOWN
+            };
+
+            /*
+             * Physics normal is Y, so model can face around the floor plane.
+             */
+            case Y -> new Direction[]{
+                    Direction.NORTH,
+                    Direction.EAST,
+                    Direction.SOUTH,
+                    Direction.WEST
+            };
+
+            /*
+             * Physics normal is Z, so model can roll toward east/up/west/down.
+             */
+            case Z -> new Direction[]{
+                    Direction.EAST,
+                    Direction.UP,
+                    Direction.WEST,
+                    Direction.DOWN
+            };
         };
     }
 
@@ -244,10 +364,9 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
         }
     }
 
-    @Override
-    public @NotNull Direction sable$getNormal(BlockState state) {
-        return state.getValue(FACING);
-    }
+    /*
+     * Symmetric-sail style Sable physics.
+     */
 
     @Override
     public float sable$getLiftScalar() {
@@ -256,133 +375,17 @@ public final class PodStabilizerBlock extends BaseEntityBlock implements BlockSu
 
     @Override
     public float sable$getParallelDragScalar() {
-        /*
-         * Non-zero so Sable treats this as an active drag provider.
-         * Actual strength scaling still happens inside sable$contributeLiftAndDrag(...).
-         */
-        return MAX_PARALLEL_DRAG;
+        return PARALLEL_DRAG;
     }
 
     @Override
     public float sable$getDirectionlessDragScalar() {
-        /*
-         * Non-zero for the same reason. The custom contribution method still scales
-         * by the GUI strength value.
-         */
-        return MAX_DIRECTIONLESS_DRAG;
+        return DIRECTIONLESS_DRAG;
     }
 
     @Override
-    public void sable$contributeLiftAndDrag(
-            final LiftProviderContext ctx,
-            final ServerSubLevel subLevel,
-            @NotNull final Pose3d localPose,
-            final double timeStep,
-            final Vector3dc linearVelocity,
-            final Vector3dc angularVelocity,
-            final Vector3d linearImpulse,
-            final Vector3d angularImpulse,
-            @Nullable final LiftProviderGroup group
-    ) {
-        BlockState state = ctx.state();
-
-        if (!state.hasProperty(STRENGTH) || !state.hasProperty(FACING)) {
-            return;
-        }
-
-        int strength = state.getValue(STRENGTH);
-
-        if (strength <= 0) {
-            return;
-        }
-
-        double strength01 = strength / 15.0D;
-
-        double parallelDragScalar = MAX_PARALLEL_DRAG * strength01;
-        double directionlessDragScalar = MAX_DIRECTIONLESS_DRAG * strength01;
-
-        Direction facing = state.getValue(FACING);
-
-        Vector3d normal = new Vector3d(
-                facing.getStepX(),
-                facing.getStepY(),
-                facing.getStepZ()
-        );
-
-        Vector3d liftPos = new Vector3d(
-                ctx.pos().getX() + 0.5D,
-                ctx.pos().getY() + 0.5D,
-                ctx.pos().getZ() + 0.5D
-        );
-
-        if (localPose != null) {
-            localPose.transformNormal(normal);
-            localPose.transformPosition(liftPos);
-        }
-
-        if (normal.lengthSquared() < 0.000001D) {
-            return;
-        }
-
-        normal.normalize();
-
-        Pose3d pose = subLevel.logicalPose();
-
-        Vector3d temp = new Vector3d();
-        Vector3d velocity = new Vector3d();
-        Vector3d drag = new Vector3d();
-        Vector3d force = new Vector3d();
-
-        double pressure = DimensionPhysicsData.getAirPressure(
-                subLevel.getLevel(),
-                pose.transformPosition(liftPos, temp)
-        );
-
-        pose.transformPosition(liftPos, temp).sub(pose.position());
-
-        velocity.set(linearVelocity).add(angularVelocity.cross(temp, temp));
-        pose.transformNormalInverse(velocity);
-
-        if (!isFiniteVector(velocity)) {
-            return;
-        }
-
-        if (parallelDragScalar > 0.0D) {
-            double dragStrength = normal.dot(velocity) * parallelDragScalar * pressure * timeStep;
-
-            Vector3d parallelDrag = normal.mul(dragStrength, drag);
-            force.add(parallelDrag);
-
-            if (group != null) {
-                group.totalDrag().sub(parallelDrag);
-                group.dragCenter().fma(Math.abs(dragStrength), liftPos);
-                group.totalDragStrength += Math.abs(dragStrength);
-            }
-        }
-
-        if (directionlessDragScalar > 0.0D) {
-            double dragStrength = directionlessDragScalar * pressure * timeStep;
-
-            Vector3d directionlessDrag = velocity.mul(dragStrength, temp);
-            force.add(directionlessDrag);
-
-            if (group != null) {
-                group.totalDrag().sub(directionlessDrag);
-                group.dragCenter().fma(directionlessDrag.length(), liftPos);
-                group.totalDragStrength += directionlessDrag.length();
-            }
-        }
-
-        linearImpulse.sub(force);
-
-        liftPos.sub(subLevel.getMassTracker().getCenterOfMass(), temp);
-        angularImpulse.sub(temp.cross(force));
-    }
-
-    private static boolean isFiniteVector(Vector3d vector) {
-        return Double.isFinite(vector.x)
-                && Double.isFinite(vector.y)
-                && Double.isFinite(vector.z);
+    public @NotNull Direction sable$getNormal(BlockState state) {
+        return Direction.get(Direction.AxisDirection.POSITIVE, state.getValue(AXIS));
     }
 
     @Override

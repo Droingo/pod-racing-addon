@@ -2,7 +2,7 @@
   "multipart": [
     {
       "when": {
-        "mount_face": "up",
+        "axis": "x",
         "facing": "north"
       },
       "apply": {
@@ -11,39 +11,18 @@
     },
     {
       "when": {
-        "mount_face": "up",
-        "facing": "east"
+        "axis": "x",
+        "facing": "up"
       },
       "apply": {
         "model": "pod_racing_addon:block/pod_stabilizer",
-        "y": 90
+        "x": 90
       }
     },
     {
       "when": {
-        "mount_face": "up",
+        "axis": "x",
         "facing": "south"
-      },
-      "apply": {
-        "model": "pod_racing_addon:block/pod_stabilizer",
-        "y": 180
-      }
-    },
-    {
-      "when": {
-        "mount_face": "up",
-        "facing": "west"
-      },
-      "apply": {
-        "model": "pod_racing_addon:block/pod_stabilizer",
-        "y": 270
-      }
-    },
-
-    {
-      "when": {
-        "mount_face": "down",
-        "facing": "north"
       },
       "apply": {
         "model": "pod_racing_addon:block/pod_stabilizer",
@@ -52,42 +31,29 @@
     },
     {
       "when": {
-        "mount_face": "down",
-        "facing": "east"
+        "axis": "x",
+        "facing": "down"
       },
       "apply": {
         "model": "pod_racing_addon:block/pod_stabilizer",
-        "x": 180,
-        "y": 270
-      }
-    },
-    {
-      "when": {
-        "mount_face": "down",
-        "facing": "south"
-      },
-      "apply": {
-        "model": "pod_racing_addon:block/pod_stabilizer",
-        "x": 180,
-        "y": 180
-      }
-    },
-    {
-      "when": {
-        "mount_face": "down",
-        "facing": "west"
-      },
-      "apply": {
-        "model": "pod_racing_addon:block/pod_stabilizer",
-        "x": 180,
-        "y": 90
+        "x": 270
       }
     },
 
     {
       "when": {
-        "mount_face": "north",
+        "axis": "z",
         "facing": "east"
+      },
+      "apply": {
+        "model": "pod_racing_addon:block/pod_stabilizer",
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "axis": "z",
+        "facing": "up"
       },
       "apply": {
         "model": "pod_racing_addon:block/pod_stabilizer",
@@ -97,42 +63,29 @@
     },
     {
       "when": {
-        "mount_face": "north",
+        "axis": "z",
         "facing": "west"
       },
       "apply": {
         "model": "pod_racing_addon:block/pod_stabilizer",
-        "x": 90,
         "y": 270
       }
     },
-
     {
       "when": {
-        "mount_face": "south",
-        "facing": "east"
+        "axis": "z",
+        "facing": "down"
       },
       "apply": {
         "model": "pod_racing_addon:block/pod_stabilizer",
-        "x": 90,
+        "x": 270,
         "y": 90
       }
     },
-    {
-      "when": {
-        "mount_face": "south",
-        "facing": "west"
-      },
-      "apply": {
-        "model": "pod_racing_addon:block/pod_stabilizer",
-        "x": 90,
-        "y": 270
-      }
-    },
 
     {
       "when": {
-        "mount_face": "east",
+        "axis": "y",
         "facing": "north"
       },
       "apply": {
@@ -142,7 +95,18 @@
     },
     {
       "when": {
-        "mount_face": "east",
+        "axis": "y",
+        "facing": "east"
+      },
+      "apply": {
+        "model": "pod_racing_addon:block/pod_stabilizer",
+        "x": 90,
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "axis": "y",
         "facing": "south"
       },
       "apply": {
@@ -151,26 +115,15 @@
         "y": 180
       }
     },
-
     {
       "when": {
-        "mount_face": "west",
-        "facing": "north"
-      },
-      "apply": {
-        "model": "pod_racing_addon:block/pod_stabilizer",
-        "x": 90
-      }
-    },
-    {
-      "when": {
-        "mount_face": "west",
-        "facing": "south"
+        "axis": "y",
+        "facing": "west"
       },
       "apply": {
         "model": "pod_racing_addon:block/pod_stabilizer",
         "x": 90,
-        "y": 180
+        "y": 270
       }
     }
   ]
