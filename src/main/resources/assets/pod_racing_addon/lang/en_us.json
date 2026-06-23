@@ -1,16 +1,23 @@
 {
   "itemGroup.pod_racing_addon.main": "Pod Racing Addon",
+
   "block.pod_racing_addon.binder_mount": "Binder Mount",
   "menu.pod_racing_addon.binder_mount": "Binder Mount",
+
   "block.pod_racing_addon.hover_repulsor": "Repulsorlift Generator",
   "menu.pod_racing_addon.hover_repulsor": "Repulsorlift Generator",
+
   "block.pod_racing_addon.air_brake": "Air Brake",
   "item.pod_racing_addon.air_brake": "Air Brake",
   "menu.pod_racing_addon.air_brake": "Air Brake",
+
   "block.pod_racing_addon.pod_race_trophy": "Pod Race Trophy",
   "item.pod_racing_addon.pod_race_trophy": "Pod Race Trophy",
+
   "block.pod_racing_addon.pod_stabilizer": "Pod Stabilizer",
   "item.pod_racing_addon.pod_stabilizer": "Pod Stabilizer",
-  "menu.pod_racing_addon.pod_stabilizer": "Pod Stabilizer"
+  "menu.pod_racing_addon.pod_stabilizer": "Pod Stabilizer",
 
+  "block.pod_racing_addon.roll_test_thruster": "Attitude Test Thruster",
+  "item.pod_racing_addon.roll_test_thruster": "Attitude Test Thruster"
 }

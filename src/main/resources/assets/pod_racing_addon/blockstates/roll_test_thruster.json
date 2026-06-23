@@ -1,0 +1,9 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "pod_racing_addon:block/roll_test_thruster"
+      }
+    }
+  ]
+}

@@ -3,13 +3,14 @@ package net.droingo.podracing.registry;
 import net.droingo.podracing.PodRacingAddon;
 import net.droingo.podracing.content.airbrake.AirBrakeBlockEntity;
 import net.droingo.podracing.content.binder.BinderMountBlockEntity;
+import net.droingo.podracing.content.hover.HoverRepulsorBlockEntity;
+import net.droingo.podracing.content.rolltest.RollTestThrusterBlockEntity;
 import net.droingo.podracing.content.stabilizer.PodStabilizerBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import net.droingo.podracing.content.hover.HoverRepulsorBlockEntity;
 
 public final class PRBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
@@ -28,20 +29,22 @@ public final class PRBlockEntities {
             ).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AirBrakeBlockEntity>> AIR_BRAKE =
-            BLOCK_ENTITIES.register("air_brake", () ->
-                    BlockEntityType.Builder.of(
-                            AirBrakeBlockEntity::new,
-                            PRBlocks.AIR_BRAKE.get()
-                    ).build(null)
-            );
+            BLOCK_ENTITIES.register("air_brake", () -> BlockEntityType.Builder.of(
+                    AirBrakeBlockEntity::new,
+                    PRBlocks.AIR_BRAKE.get()
+            ).build(null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PodStabilizerBlockEntity>> POD_STABILIZER =
-            BLOCK_ENTITIES.register("pod_stabilizer", () ->
-                    BlockEntityType.Builder.of(
-                            PodStabilizerBlockEntity::new,
-                            PRBlocks.POD_STABILIZER.get()
-                    ).build(null)
-            );
+            BLOCK_ENTITIES.register("pod_stabilizer", () -> BlockEntityType.Builder.of(
+                    PodStabilizerBlockEntity::new,
+                    PRBlocks.POD_STABILIZER.get()
+            ).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RollTestThrusterBlockEntity>> ROLL_TEST_THRUSTER =
+            BLOCK_ENTITIES.register("roll_test_thruster", () -> BlockEntityType.Builder.of(
+                    RollTestThrusterBlockEntity::new,
+                    PRBlocks.ROLL_TEST_THRUSTER.get()
+            ).build(null));
 
     private PRBlockEntities() {
     }

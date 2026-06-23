@@ -15,7 +15,6 @@ public final class PRItems {
             ITEMS.register("binder_mount", () -> new BlockItem(
                     PRBlocks.BINDER_MOUNT.get(),
                     new Item.Properties()
-
             ));
 
     public static final DeferredItem<BlockItem> POD_RACE_TROPHY =
@@ -30,6 +29,8 @@ public final class PRItems {
     public static final DeferredItem<BlockItem> POD_STABILIZER =
             ITEMS.registerSimpleBlockItem(PRBlocks.POD_STABILIZER);
 
+    public static final DeferredItem<BlockItem> ROLL_TEST_THRUSTER =
+            ITEMS.registerSimpleBlockItem(PRBlocks.ROLL_TEST_THRUSTER);
 
     private PRItems() {
     }

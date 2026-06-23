@@ -57,18 +57,18 @@ public final class EnergyBinderConstraintManager {
      * Soft face alignment.
      * These make the mount faces want to point along the binder.
      */
-    private static final double ANGULAR_STIFFNESS_SCALE = 90.0D;
-    private static final double ANGULAR_DAMPING_SCALE = 18.0D;
-    private static final double MAX_ALIGNMENT_TORQUE = 14000.0D;
+    private static final double ANGULAR_STIFFNESS_SCALE = 320.0D;
+    private static final double ANGULAR_DAMPING_SCALE = 70.0D;
+    private static final double MAX_ALIGNMENT_TORQUE = 75000.0D;
 
     /*
      * Soft roll alignment.
      * This stops two engines from freely pirouetting around a single binder.
      * Keep this weaker than angular Y/Z so it feels like torsion, not a weld.
      */
-    private static final double ROLL_STIFFNESS_SCALE = 22.0D;
-    private static final double ROLL_DAMPING_SCALE = 8.0D;
-    private static final double MAX_ROLL_TORQUE = 3500.0D;
+    private static final double ROLL_STIFFNESS_SCALE = 95.0D;
+    private static final double ROLL_DAMPING_SCALE = 32.0D;
+    private static final double MAX_ROLL_TORQUE = 26000.0D;
 
     private static final Map<UUID, ActiveConstraint> ACTIVE_CONSTRAINTS = new ConcurrentHashMap<>();
 

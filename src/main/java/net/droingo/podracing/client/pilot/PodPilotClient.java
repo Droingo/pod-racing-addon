@@ -1,0 +1,161 @@
+package net.droingo.podracing.client.pilot;
+
+import com.mojang.blaze3d.platform.InputConstants;
+import net.droingo.podracing.PodRacingAddon;
+import net.droingo.podracing.network.payload.UpdatePilotInputPayload;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import org.lwjgl.glfw.GLFW;
+
+@EventBusSubscriber(
+        modid = PodRacingAddon.MOD_ID,
+        value = Dist.CLIENT
+)
+public final class PodPilotClient {
+    private static final String CATEGORY = "key.categories.pod_racing_addon";
+
+    private static final KeyMapping TOGGLE_PILOT = new KeyMapping(
+            "key.pod_racing_addon.toggle_pilot",
+            InputConstants.Type.KEYSYM,
+            GLFW.GLFW_KEY_P,
+            CATEGORY
+    );
+
+    private static boolean pilotActive = false;
+
+    private static float lastSentPitch = 999.0F;
+    private static float lastSentRoll = 999.0F;
+    private static float lastSentYaw = 999.0F;
+    private static boolean lastSentActive = false;
+
+    private static int sendCooldown = 0;
+    private static int debugCooldown = 0;
+
+    private PodPilotClient() {
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        Minecraft minecraft = Minecraft.getInstance();
+
+        if (minecraft.player == null || minecraft.level == null) {
+            pilotActive = false;
+            return;
+        }
+
+        while (TOGGLE_PILOT.consumeClick()) {
+            pilotActive = !pilotActive;
+
+            minecraft.player.displayClientMessage(
+                    Component.literal(pilotActive
+                            ? "Pod pilot prototype: ON"
+                            : "Pod pilot prototype: OFF"),
+                    true
+            );
+
+            sendNow(minecraft, 0.0F, 0.0F, 0.0F);
+        }
+
+        float roll = 0.0F;
+        float pitch = 0.0F;
+        float yaw = 0.0F;
+
+        if (pilotActive) {
+            if (minecraft.options.keyLeft.isDown()) {
+                roll -= 1.0F;
+            }
+
+            if (minecraft.options.keyRight.isDown()) {
+                roll += 1.0F;
+            }
+
+            if (minecraft.options.keyUp.isDown()) {
+                pitch -= 1.0F;
+            }
+
+            if (minecraft.options.keyDown.isDown()) {
+                pitch += 1.0F;
+            }
+
+            /*
+             * Raw Q/R keyboard input.
+             * This avoids vanilla keybinding conflicts, especially Q = drop item.
+             */
+            long window = minecraft.getWindow().getWindow();
+
+            if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_Q) == GLFW.GLFW_PRESS) {
+                yaw -= 1.0F;
+            }
+
+            if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_R) == GLFW.GLFW_PRESS) {
+                yaw += 1.0F;
+            }
+        }
+
+        if (sendCooldown > 0) {
+            sendCooldown--;
+        }
+
+        if (debugCooldown > 0) {
+            debugCooldown--;
+        }
+
+        boolean changed = pilotActive != lastSentActive
+                || Math.abs(pitch - lastSentPitch) > 0.001F
+                || Math.abs(roll - lastSentRoll) > 0.001F
+                || Math.abs(yaw - lastSentYaw) > 0.001F;
+
+        if (changed || (pilotActive && sendCooldown <= 0)) {
+            sendNow(minecraft, pitch, roll, yaw);
+        }
+
+        if (pilotActive && debugCooldown <= 0 && Math.abs(yaw) > 0.001F) {
+            minecraft.player.displayClientMessage(
+                    Component.literal("Yaw input: " + yaw),
+                    true
+            );
+            debugCooldown = 10;
+        }
+    }
+
+    private static void sendNow(Minecraft minecraft, float pitch, float roll, float yaw) {
+        if (minecraft.player == null || minecraft.level == null) {
+            return;
+        }
+
+        PacketDistributor.sendToServer(new UpdatePilotInputPayload(
+                pilotActive,
+                pitch,
+                roll,
+                yaw
+        ));
+
+        lastSentActive = pilotActive;
+        lastSentPitch = pitch;
+        lastSentRoll = roll;
+        lastSentYaw = yaw;
+        sendCooldown = 4;
+    }
+
+    @EventBusSubscriber(
+            modid = PodRacingAddon.MOD_ID,
+            value = Dist.CLIENT,
+            bus = EventBusSubscriber.Bus.MOD
+    )
+    public static final class ModBusEvents {
+        private ModBusEvents() {
+        }
+
+        @SubscribeEvent
+        public static void registerKeyMappings(RegisterKeyMappingsEvent event) {
+            event.register(TOGGLE_PILOT);
+        }
+    }
+}
