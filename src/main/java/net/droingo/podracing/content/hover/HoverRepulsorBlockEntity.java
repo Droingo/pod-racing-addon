@@ -65,9 +65,9 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
     private static final double DEFAULT_SUPPORT_START_ABOVE_TARGET = 1.25D;
     private static final double DEFAULT_SUSPENSION_TRAVEL = 0.65D;
     private static final double DEFAULT_DAMPING = 1.0D;
-    private static final double DEFAULT_MAX_DELTA_V = 0.12D;
-    private static final double DEFAULT_MAX_IMPULSE = 65.0D;
-    private static final double DEFAULT_STRENGTH = 1.0D;
+    private static final double DEFAULT_MAX_DELTA_V = 0.16D;
+    private static final double DEFAULT_MAX_IMPULSE = 90.0D;
+    private static final double DEFAULT_STRENGTH = 4.0D;
 
     private static final double MIN_VALID_HEIGHT = 0.05D;
     private static final double MIN_IMPULSE = 0.00001D;
