@@ -1,0 +1,28 @@
+{
+  "multipart": [
+    {
+      "when": { "facing": "up" },
+      "apply": { "model": "pod_racing_addon:block/tow_cable_anchor" }
+    },
+    {
+      "when": { "facing": "down" },
+      "apply": { "model": "pod_racing_addon:block/tow_cable_anchor", "x": 180 }
+    },
+    {
+      "when": { "facing": "north" },
+      "apply": { "model": "pod_racing_addon:block/tow_cable_anchor", "x": 90 }
+    },
+    {
+      "when": { "facing": "south" },
+      "apply": { "model": "pod_racing_addon:block/tow_cable_anchor", "x": 90, "y": 180 }
+    },
+    {
+      "when": { "facing": "east" },
+      "apply": { "model": "pod_racing_addon:block/tow_cable_anchor", "x": 90, "y": 90 }
+    },
+    {
+      "when": { "facing": "west" },
+      "apply": { "model": "pod_racing_addon:block/tow_cable_anchor", "x": 90, "y": 270 }
+    }
+  ]
+}

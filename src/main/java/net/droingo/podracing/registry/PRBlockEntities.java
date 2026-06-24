@@ -1,6 +1,7 @@
 package net.droingo.podracing.registry;
 
 import net.droingo.podracing.PodRacingAddon;
+import net.droingo.podracing.content.towcable.TowCableAnchorBlockEntity;
 import net.droingo.podracing.content.attitudefin.AttitudeFinBlockEntity;
 import net.droingo.podracing.content.airbrake.AirBrakeBlockEntity;
 import net.droingo.podracing.content.binder.BinderMountBlockEntity;
@@ -57,6 +58,11 @@ public final class PRBlockEntities {
             BLOCK_ENTITIES.register("attitude_fin", () -> BlockEntityType.Builder.of(
                     AttitudeFinBlockEntity::new,
                     PRBlocks.ATTITUDE_FIN.get()
+            ).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TowCableAnchorBlockEntity>> TOW_CABLE_ANCHOR =
+            BLOCK_ENTITIES.register("tow_cable_anchor", () -> BlockEntityType.Builder.of(
+                    TowCableAnchorBlockEntity::new,
+                    PRBlocks.TOW_CABLE_ANCHOR.get()
             ).build(null));
 
     private PRBlockEntities() {

@@ -16,6 +16,7 @@ import net.droingo.podracing.registry.PRBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -101,7 +102,10 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
     private boolean wasPowered = false;
     private boolean pendingActivationEffect = false;
+    private boolean pendingLoadRefresh = false;
+    private int loadRefreshTicks = 0;
     private long lastActivationEffectGameTime = -200L;
+    private long lastWaterSprayEffectGameTime = -200L;
 
     private final Vector3d queuedForcePos = new Vector3d();
     private final Vector3d queuedForce = new Vector3d();
@@ -115,6 +119,8 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
         if (level.isClientSide()) {
             return;
         }
+
+        blockEntity.handlePostLoadRefresh();
 
         blockEntity.ensureCreateNetworkRegistration();
 
@@ -149,6 +155,7 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
         boolean appliedAnyImpulse = false;
         TerrainCastResult closestTerrainForEffect = null;
+        TerrainCastResult closestWaterTerrainForEffect = null;
 
         for (int sampleX = -SAMPLE_GRID_RADIUS; sampleX <= SAMPLE_GRID_RADIUS; sampleX++) {
             for (int sampleZ = -SAMPLE_GRID_RADIUS; sampleZ <= SAMPLE_GRID_RADIUS; sampleZ++) {
@@ -168,6 +175,11 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
                     closestTerrainForEffect = terrain;
                 }
 
+                if (terrain.waterSurface()
+                        && (closestWaterTerrainForEffect == null || terrain.height() < closestWaterTerrainForEffect.height())) {
+                    closestWaterTerrainForEffect = terrain;
+                }
+
                 if (applySampleImpulse(subLevel, samplePoint, terrain, timeStep)) {
                     appliedAnyImpulse = true;
                 }
@@ -184,11 +196,19 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
             pendingActivationEffect = false;
         }
 
+        /*
+         * Spawn spray whenever the repulsor is powered and sees water.
+         * Do not require appliedAnyImpulse, because if the pod is already stable,
+         * the visual should still prove the water surface is being detected.
+         */
+        if (closestWaterTerrainForEffect != null) {
+            spawnWaterSprayEffect(closestWaterTerrainForEffect);
+        }
+
         if (appliedAnyImpulse) {
             handle.applyForcesAndReset(forceTotal);
         }
     }
-
     private boolean applySampleImpulse(
             ServerSubLevel subLevel,
             Vec3 samplePoint,
@@ -298,7 +318,7 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
                 localStart,
                 localEnd,
                 ClipContext.Block.COLLIDER,
-                ClipContext.Fluid.NONE,
+                ClipContext.Fluid.ANY,
                 CollisionContext.empty()
         );
 
@@ -316,6 +336,15 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
         Vec3 hitLocation = hitResult.getLocation();
 
+        BlockPos hitBlockPos = hitResult.getBlockPos();
+        net.minecraft.world.level.material.FluidState hitFluidState = level.getFluidState(hitBlockPos);
+        boolean hitWaterSurface = hitFluidState.is(net.minecraft.tags.FluidTags.WATER);
+
+        if (hitWaterSurface) {
+            double waterSurfaceY = hitBlockPos.getY() + hitFluidState.getHeight(level, hitBlockPos);
+            hitLocation = new Vec3(hitLocation.x, waterSurfaceY, hitLocation.z);
+        }
+
         Vec3 worldStart = ownSubLevel.logicalPose().transformPosition(localStart);
 
         Vec3 worldHitLocation = hitSubLevel == null
@@ -328,14 +357,24 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
             return null;
         }
 
-        Vector3d worldSurfaceNormal = new Vector3d(
-                hitResult.getDirection().getStepX(),
-                hitResult.getDirection().getStepY(),
-                hitResult.getDirection().getStepZ()
-        );
+        Vector3d worldSurfaceNormal;
 
-        if (hitSubLevel != null) {
-            hitSubLevel.logicalPose().transformNormal(worldSurfaceNormal);
+        if (hitWaterSurface) {
+            worldSurfaceNormal = new Vector3d(0.0D, 1.0D, 0.0D);
+
+            if (hitSubLevel != null) {
+                hitSubLevel.logicalPose().transformNormal(worldSurfaceNormal);
+            }
+        } else {
+            worldSurfaceNormal = new Vector3d(
+                    hitResult.getDirection().getStepX(),
+                    hitResult.getDirection().getStepY(),
+                    hitResult.getDirection().getStepZ()
+            );
+
+            if (hitSubLevel != null) {
+                hitSubLevel.logicalPose().transformNormal(worldSurfaceNormal);
+            }
         }
 
         if (worldSurfaceNormal.lengthSquared() < 0.000001D) {
@@ -358,9 +397,61 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
 
         localWorldUp.normalize();
 
-        return new TerrainCastResult(height, localWorldUp, worldHitLocation);
+        return new TerrainCastResult(height, localWorldUp, worldHitLocation, hitWaterSurface);
     }
+    private void spawnWaterSprayEffect(TerrainCastResult terrain) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
 
+        if (level.getGameTime() - lastWaterSprayEffectGameTime < 3L) {
+            return;
+        }
+
+        lastWaterSprayEffectGameTime = level.getGameTime();
+
+        Vec3 water = terrain.worldHitPosition();
+
+        /*
+         * Extra Sable safety:
+         * sendParticles needs visible/projected world coordinates.
+         * If this point is accidentally still inside a Sable subplot, project it out.
+         */
+        SubLevel particleSubLevel = Sable.HELPER.getContaining(level, water);
+        if (particleSubLevel != null) {
+            water = particleSubLevel.logicalPose().transformPosition(water);
+        }
+
+        double supportTop = targetHeight + supportStartAboveTarget;
+        double intensity = clamp((supportTop - terrain.height()) / supportStartAboveTarget, 0.25D, 1.0D);
+
+        int splashCount = 10 + (int) Math.round(18.0D * intensity);
+        int cloudCount = 3 + (int) Math.round(5.0D * intensity);
+
+        serverLevel.sendParticles(
+                ParticleTypes.SPLASH,
+                water.x,
+                water.y + 0.06D,
+                water.z,
+                splashCount,
+                0.75D,
+                0.04D,
+                0.75D,
+                0.18D
+        );
+
+        serverLevel.sendParticles(
+                ParticleTypes.CLOUD,
+                water.x,
+                water.y + 0.14D,
+                water.z,
+                cloudCount,
+                0.55D,
+                0.035D,
+                0.55D,
+                0.025D
+        );
+    }
     private void spawnActivationEffect(TerrainCastResult terrain) {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
@@ -497,6 +588,41 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
         return !getFrequencyItem(0).isEmpty() && !getFrequencyItem(1).isEmpty();
     }
 
+    private void handlePostLoadRefresh() {
+        if (!pendingLoadRefresh) {
+            return;
+        }
+
+        if (level == null || level.isClientSide()) {
+            return;
+        }
+
+        loadRefreshTicks++;
+
+        /*
+         * Wait a few ticks so loaded Sable sublevels, Create networks, and
+         * neighbouring redstone have time to exist before we refresh.
+         */
+        if (loadRefreshTicks < 5) {
+            return;
+        }
+
+        pendingLoadRefresh = false;
+        loadRefreshTicks = 0;
+
+        directlyPowered = level.hasNeighborSignal(worldPosition);
+
+        unregisterFromCreateNetwork();
+        receivedWirelessSignal = 0;
+
+        if (hasCompleteFrequency()) {
+            Create.REDSTONE_LINK_NETWORK_HANDLER.addToNetwork(level, this);
+            createNetworkRegistered = true;
+        }
+
+        setChanged();
+        level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+    }
     private void ensureCreateNetworkRegistration() {
         if (level == null || level.isClientSide()) {
             return;
@@ -546,6 +672,23 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
         createNetworkRegistered = false;
     }
 
+    @Override
+    public void onLoad() {
+        super.onLoad();
+
+        /*
+         * Loaded contraptions/sublevels can restore this BE before Create's
+         * redstone-link network and Sable actor lists are fully awake.
+         * Queue a short delayed refresh so existing placed repulsors become
+         * active after world/chunk load without needing to be replaced.
+         */
+        pendingLoadRefresh = true;
+        loadRefreshTicks = 0;
+        createNetworkRegistered = false;
+        receivedWirelessSignal = 0;
+        wasPowered = false;
+        pendingActivationEffect = false;
+    }
     @Override
     public void setRemoved() {
         unregisterFromCreateNetwork();
@@ -855,6 +998,6 @@ public final class HoverRepulsorBlockEntity extends BlockEntity implements Block
         return value;
     }
 
-    private record TerrainCastResult(double height, Vector3d localWorldUp, Vec3 worldHitPosition) {
+    private record TerrainCastResult(double height, Vector3d localWorldUp, Vec3 worldHitPosition, boolean waterSurface) {
     }
 }

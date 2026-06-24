@@ -36,6 +36,8 @@ public final class PRItems {
             ITEMS.registerSimpleBlockItem(PRBlocks.POD_CONTROL_CORE);
     public static final DeferredItem<BlockItem> ATTITUDE_FIN =
             ITEMS.registerSimpleBlockItem(PRBlocks.ATTITUDE_FIN);
+    public static final DeferredItem<BlockItem> TOW_CABLE_ANCHOR =
+            ITEMS.registerSimpleBlockItem(PRBlocks.TOW_CABLE_ANCHOR);
 
     private PRItems() {
     }

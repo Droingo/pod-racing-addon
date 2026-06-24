@@ -26,4 +26,7 @@
 ,
   "block.pod_racing_addon.attitude_fin": "Attitude Fin",
   "item.pod_racing_addon.attitude_fin": "Attitude Fin"
+,
+  "block.pod_racing_addon.tow_cable_anchor": "Tow Cable Anchor",
+  "item.pod_racing_addon.tow_cable_anchor": "Tow Cable Anchor"
 }

@@ -24,6 +24,7 @@ public final class PRCreativeTabs {
                         output.accept(PRItems.ROLL_TEST_THRUSTER.get());
                         output.accept(PRItems.POD_CONTROL_CORE.get());
                         output.accept(PRItems.ATTITUDE_FIN.get());
+                        output.accept(PRItems.TOW_CABLE_ANCHOR.get());
                     })
                     .build()
             );

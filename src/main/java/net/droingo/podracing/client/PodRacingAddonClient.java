@@ -1,6 +1,8 @@
 package net.droingo.podracing.client;
 
 import net.droingo.podracing.PodRacingAddon;
+import net.droingo.podracing.client.towcable.TowCableAnchorRenderer;
+import net.droingo.podracing.client.towcable.TowCableScreen;
 import net.droingo.podracing.client.attitudefin.AttitudeFinScreen;
 import net.droingo.podracing.client.airbrake.AirBrakeRenderer;
 import net.droingo.podracing.client.airbrake.AirBrakeScreen;
@@ -51,6 +53,7 @@ public final class PodRacingAddonClient {
             event.register(PRMenuTypes.AIR_BRAKE.get(), AirBrakeScreen::new);
             event.register(PRMenuTypes.POD_STABILIZER.get(), PodStabilizerScreen::new);
             event.register(PRMenuTypes.ATTITUDE_FIN.get(), AttitudeFinScreen::new);
+            event.register(PRMenuTypes.TOW_CABLE_ANCHOR.get(), TowCableScreen::new);
         }
 
         @SubscribeEvent
@@ -68,6 +71,11 @@ public final class PodRacingAddonClient {
             event.registerBlockEntityRenderer(
                     PRBlockEntities.POD_CONTROL_CORE.get(),
                     PodControlCoreRenderer::new
+            );
+
+            event.registerBlockEntityRenderer(
+                    PRBlockEntities.TOW_CABLE_ANCHOR.get(),
+                    TowCableAnchorRenderer::new
             );
         }
 

@@ -1,6 +1,7 @@
 package net.droingo.podracing.registry;
 
 import net.droingo.podracing.PodRacingAddon;
+import net.droingo.podracing.content.towcable.TowCableAnchorBlock;
 import net.droingo.podracing.content.attitudefin.AttitudeFinBlock;
 import net.droingo.podracing.content.airbrake.AirBrakeBlock;
 import net.droingo.podracing.content.binder.BinderMountBlock;
@@ -95,6 +96,16 @@ public final class PRBlocks {
             BLOCKS.registerBlock(
                     "attitude_fin",
                     AttitudeFinBlock::new,
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.METAL)
+                            .strength(1.5F, 6.0F)
+                            .sound(SoundType.METAL)
+                            .noOcclusion()
+            );
+    public static final DeferredBlock<TowCableAnchorBlock> TOW_CABLE_ANCHOR =
+            BLOCKS.registerBlock(
+                    "tow_cable_anchor",
+                    TowCableAnchorBlock::new,
                     BlockBehaviour.Properties.of()
                             .mapColor(MapColor.METAL)
                             .strength(1.5F, 6.0F)
