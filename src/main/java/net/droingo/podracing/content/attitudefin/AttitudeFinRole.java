@@ -6,9 +6,14 @@ public enum AttitudeFinRole implements StringRepresentable {
     LEFT_ENGINE("left_engine", 1),
     RIGHT_ENGINE("right_engine", -1),
 
+    FRONT_CONTROL("front_control", 1),
+    REAR_CONTROL("rear_control", -1),
+
+    /*
+     * Compatibility aliases for old placed blocks.
+     */
     PITCH_FRONT("pitch_front", 1),
     PITCH_REAR("pitch_rear", -1),
-
     YAW_FRONT("yaw_front", 1),
     YAW_REAR("yaw_rear", -1);
 
@@ -24,11 +29,6 @@ public enum AttitudeFinRole implements StringRepresentable {
         return controlSign;
     }
 
-    public AttitudeFinRole next() {
-        AttitudeFinRole[] values = values();
-        return values[(ordinal() + 1) % values.length];
-    }
-
     @Override
     public String getSerializedName() {
         return serializedName;
@@ -36,12 +36,10 @@ public enum AttitudeFinRole implements StringRepresentable {
 
     public String displayName() {
         return switch (this) {
-            case LEFT_ENGINE -> "Left Engine";
-            case RIGHT_ENGINE -> "Right Engine";
-            case PITCH_FRONT -> "Pitch Front";
-            case PITCH_REAR -> "Pitch Rear";
-            case YAW_FRONT -> "Yaw Front";
-            case YAW_REAR -> "Yaw Rear";
+            case LEFT_ENGINE -> "Roll Left";
+            case RIGHT_ENGINE -> "Roll Right";
+            case FRONT_CONTROL, PITCH_FRONT, YAW_FRONT -> "Front Control";
+            case REAR_CONTROL, PITCH_REAR, YAW_REAR -> "Rear Control";
         };
     }
 
@@ -49,11 +47,33 @@ public enum AttitudeFinRole implements StringRepresentable {
         return this == LEFT_ENGINE || this == RIGHT_ENGINE;
     }
 
-    public boolean isPitchRole() {
-        return this == PITCH_FRONT || this == PITCH_REAR;
+    public boolean isFrontControlRole() {
+        return this == FRONT_CONTROL || this == PITCH_FRONT || this == YAW_FRONT;
     }
 
-    public boolean isYawRole() {
-        return this == YAW_FRONT || this == YAW_REAR;
+    public boolean isRearControlRole() {
+        return this == REAR_CONTROL || this == PITCH_REAR || this == YAW_REAR;
+    }
+
+    public boolean isCombinedControlRole() {
+        return isFrontControlRole() || isRearControlRole();
+    }
+
+    public int guiIndex() {
+        return switch (this) {
+            case LEFT_ENGINE -> 0;
+            case RIGHT_ENGINE -> 1;
+            case FRONT_CONTROL, PITCH_FRONT, YAW_FRONT -> 2;
+            case REAR_CONTROL, PITCH_REAR, YAW_REAR -> 3;
+        };
+    }
+
+    public static AttitudeFinRole fromGuiIndex(int index) {
+        return switch (index) {
+            case 1 -> RIGHT_ENGINE;
+            case 2 -> FRONT_CONTROL;
+            case 3 -> REAR_CONTROL;
+            default -> LEFT_ENGINE;
+        };
     }
 }

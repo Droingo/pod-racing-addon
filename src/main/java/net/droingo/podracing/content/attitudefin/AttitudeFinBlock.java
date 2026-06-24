@@ -1,11 +1,10 @@
 package net.droingo.podracing.content.attitudefin;
 
 import com.mojang.serialization.MapCodec;
-import net.droingo.podracing.content.pilot.PodPilotInputState;
 import net.droingo.podracing.registry.PRBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -99,45 +98,13 @@ public final class AttitudeFinBlock extends BaseEntityBlock {
             return InteractionResult.SUCCESS;
         }
 
-        if (player.isShiftKeyDown()) {
-            BlockEntity blockEntity = level.getBlockEntity(pos);
-
-            if (blockEntity instanceof AttitudeFinBlockEntity attitudeFin) {
-                PodPilotInputState.Command command =
-                        PodPilotInputState.findCommandForPlayer(level, player.getUUID());
-
-                if (command != null && command.controlFrequency() != null) {
-                    attitudeFin.bindToFrequency(command.controlFrequency());
-
-                    player.displayClientMessage(
-                            Component.literal("Attitude Fin bound to core frequency " + attitudeFin.getFrequencyShortName()),
-                            true
-                    );
-
-                    return InteractionResult.SUCCESS;
-                }
-            }
-
-            boolean reversed = !state.getValue(REVERSED);
-            level.setBlock(pos, state.setValue(REVERSED, reversed), 3);
-
-            player.displayClientMessage(
-                    Component.literal("Attitude Fin reversed: " + (reversed ? "ON" : "OFF")),
-                    true
-            );
-
-            return InteractionResult.SUCCESS;
+        if (player instanceof ServerPlayer serverPlayer
+                && level.getBlockEntity(pos) instanceof AttitudeFinBlockEntity attitudeFin) {
+            serverPlayer.openMenu(attitudeFin);
+            return InteractionResult.CONSUME;
         }
 
-        AttitudeFinRole nextRole = state.getValue(ROLE).next();
-        level.setBlock(pos, state.setValue(ROLE, nextRole), 3);
-
-        player.displayClientMessage(
-                Component.literal("Attitude Fin role: " + nextRole.displayName()),
-                true
-        );
-
-        return InteractionResult.SUCCESS;
+        return InteractionResult.CONSUME;
     }
 
     @Override
