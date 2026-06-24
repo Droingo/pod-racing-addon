@@ -1,6 +1,7 @@
 package net.droingo.podracing.registry;
 
 import net.droingo.podracing.PodRacingAddon;
+import net.droingo.podracing.content.attitudefin.menu.AttitudeFinMenu;
 import net.droingo.podracing.content.airbrake.menu.AirBrakeMenu;
 import net.droingo.podracing.content.binder.menu.BinderMountMenu;
 import net.droingo.podracing.content.hover.menu.HoverRepulsorMenu;
@@ -37,6 +38,11 @@ public final class PRMenuTypes {
     public static final DeferredHolder<MenuType<?>, MenuType<PodStabilizerMenu>> POD_STABILIZER =
             MENUS.register("pod_stabilizer", () -> new MenuType<>(
                     PodStabilizerMenu::new,
+                    FeatureFlags.DEFAULT_FLAGS
+            ));
+    public static final DeferredHolder<MenuType<?>, MenuType<AttitudeFinMenu>> ATTITUDE_FIN =
+            MENUS.register("attitude_fin", () -> new MenuType<>(
+                    AttitudeFinMenu::new,
                     FeatureFlags.DEFAULT_FLAGS
             ));
 

@@ -5,6 +5,7 @@ import net.droingo.podracing.PodRacingAddon;
 import net.droingo.podracing.network.payload.UpdatePilotInputPayload;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -29,6 +30,7 @@ public final class PodPilotClient {
     );
 
     private static boolean pilotActive = false;
+    private static BlockPos activeControlCorePos;
 
     private static float lastSentPitch = 999.0F;
     private static float lastSentRoll = 999.0F;
@@ -41,26 +43,36 @@ public final class PodPilotClient {
     private PodPilotClient() {
     }
 
+    public static void toggleFromControlBlock(BlockPos controlCorePos) {
+        Minecraft minecraft = Minecraft.getInstance();
+
+        if (minecraft.player == null || minecraft.level == null) {
+            return;
+        }
+
+        if (pilotActive && controlCorePos.equals(activeControlCorePos)) {
+            setPilotActive(minecraft, false, activeControlCorePos, "Pod Control Core");
+        } else {
+            setPilotActive(minecraft, true, controlCorePos, "Pod Control Core");
+        }
+    }
+
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
 
         if (minecraft.player == null || minecraft.level == null) {
             pilotActive = false;
+            activeControlCorePos = null;
             return;
         }
 
         while (TOGGLE_PILOT.consumeClick()) {
-            pilotActive = !pilotActive;
-
-            minecraft.player.displayClientMessage(
-                    Component.literal(pilotActive
-                            ? "Pod pilot prototype: ON"
-                            : "Pod pilot prototype: OFF"),
-                    true
-            );
-
-            sendNow(minecraft, 0.0F, 0.0F, 0.0F);
+            if (pilotActive) {
+                setPilotActive(minecraft, false, activeControlCorePos, "Pod pilot prototype");
+            } else {
+                setPilotActive(minecraft, true, null, "Pod pilot prototype");
+            }
         }
 
         float roll = 0.0F;
@@ -84,10 +96,6 @@ public final class PodPilotClient {
                 pitch += 1.0F;
             }
 
-            /*
-             * Raw Q/R keyboard input.
-             * This avoids vanilla keybinding conflicts, especially Q = drop item.
-             */
             long window = minecraft.getWindow().getWindow();
 
             if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_Q) == GLFW.GLFW_PRESS) {
@@ -113,7 +121,7 @@ public final class PodPilotClient {
                 || Math.abs(yaw - lastSentYaw) > 0.001F;
 
         if (changed || (pilotActive && sendCooldown <= 0)) {
-            sendNow(minecraft, pitch, roll, yaw);
+            sendNow(minecraft, pitch, roll, yaw, activeControlCorePos);
         }
 
         if (pilotActive && debugCooldown <= 0 && Math.abs(yaw) > 0.001F) {
@@ -125,7 +133,37 @@ public final class PodPilotClient {
         }
     }
 
-    private static void sendNow(Minecraft minecraft, float pitch, float roll, float yaw) {
+    private static void setPilotActive(
+            Minecraft minecraft,
+            boolean active,
+            BlockPos controlCorePos,
+            String sourceName
+    ) {
+        pilotActive = active;
+
+        if (active) {
+            activeControlCorePos = controlCorePos;
+        }
+
+        minecraft.player.displayClientMessage(
+                Component.literal(sourceName + ": " + (pilotActive ? "ON" : "OFF")),
+                true
+        );
+
+        sendNow(minecraft, 0.0F, 0.0F, 0.0F, active ? activeControlCorePos : controlCorePos);
+
+        if (!active) {
+            activeControlCorePos = null;
+        }
+    }
+
+    private static void sendNow(
+            Minecraft minecraft,
+            float pitch,
+            float roll,
+            float yaw,
+            BlockPos controlCorePos
+    ) {
         if (minecraft.player == null || minecraft.level == null) {
             return;
         }
@@ -134,7 +172,9 @@ public final class PodPilotClient {
                 pilotActive,
                 pitch,
                 roll,
-                yaw
+                yaw,
+                controlCorePos != null,
+                controlCorePos == null ? BlockPos.ZERO : controlCorePos
         ));
 
         lastSentActive = pilotActive;

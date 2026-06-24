@@ -20,4 +20,10 @@
 
   "block.pod_racing_addon.roll_test_thruster": "Attitude Test Thruster",
   "item.pod_racing_addon.roll_test_thruster": "Attitude Test Thruster"
+,
+  "block.pod_racing_addon.pod_control_core": "Pod Control Core",
+  "item.pod_racing_addon.pod_control_core": "Pod Control Core"
+,
+  "block.pod_racing_addon.attitude_fin": "Attitude Fin",
+  "item.pod_racing_addon.attitude_fin": "Attitude Fin"
 }

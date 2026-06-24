@@ -1,9 +1,11 @@
 package net.droingo.podracing.registry;
 
 import net.droingo.podracing.PodRacingAddon;
+import net.droingo.podracing.content.attitudefin.AttitudeFinBlock;
 import net.droingo.podracing.content.airbrake.AirBrakeBlock;
 import net.droingo.podracing.content.binder.BinderMountBlock;
 import net.droingo.podracing.content.hover.HoverRepulsorBlock;
+import net.droingo.podracing.content.pilot.PodControlCoreBlock;
 import net.droingo.podracing.content.rolltest.RollTestThrusterBlock;
 import net.droingo.podracing.content.stabilizer.PodStabilizerBlock;
 import net.droingo.podracing.content.trophy.PodRaceTrophyBlock;
@@ -77,6 +79,27 @@ public final class PRBlocks {
                             .mapColor(MapColor.METAL)
                             .strength(1.5F, 6.0F)
                             .sound(SoundType.METAL)
+            );
+
+    public static final DeferredBlock<PodControlCoreBlock> POD_CONTROL_CORE =
+            BLOCKS.registerBlock(
+                    "pod_control_core",
+                    PodControlCoreBlock::new,
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.METAL)
+                            .strength(2.0F, 6.0F)
+                            .sound(SoundType.METAL)
+                            .noOcclusion()
+            );
+    public static final DeferredBlock<AttitudeFinBlock> ATTITUDE_FIN =
+            BLOCKS.registerBlock(
+                    "attitude_fin",
+                    AttitudeFinBlock::new,
+                    BlockBehaviour.Properties.of()
+                            .mapColor(MapColor.METAL)
+                            .strength(1.5F, 6.0F)
+                            .sound(SoundType.METAL)
+                            .noOcclusion()
             );
 
     private PRBlocks() {

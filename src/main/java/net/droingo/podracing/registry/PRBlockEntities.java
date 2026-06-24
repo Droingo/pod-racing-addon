@@ -1,9 +1,11 @@
 package net.droingo.podracing.registry;
 
 import net.droingo.podracing.PodRacingAddon;
+import net.droingo.podracing.content.attitudefin.AttitudeFinBlockEntity;
 import net.droingo.podracing.content.airbrake.AirBrakeBlockEntity;
 import net.droingo.podracing.content.binder.BinderMountBlockEntity;
 import net.droingo.podracing.content.hover.HoverRepulsorBlockEntity;
+import net.droingo.podracing.content.pilot.PodControlCoreBlockEntity;
 import net.droingo.podracing.content.rolltest.RollTestThrusterBlockEntity;
 import net.droingo.podracing.content.stabilizer.PodStabilizerBlockEntity;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -44,6 +46,17 @@ public final class PRBlockEntities {
             BLOCK_ENTITIES.register("roll_test_thruster", () -> BlockEntityType.Builder.of(
                     RollTestThrusterBlockEntity::new,
                     PRBlocks.ROLL_TEST_THRUSTER.get()
+            ).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PodControlCoreBlockEntity>> POD_CONTROL_CORE =
+            BLOCK_ENTITIES.register("pod_control_core", () -> BlockEntityType.Builder.of(
+                    PodControlCoreBlockEntity::new,
+                    PRBlocks.POD_CONTROL_CORE.get()
+            ).build(null));
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AttitudeFinBlockEntity>> ATTITUDE_FIN =
+            BLOCK_ENTITIES.register("attitude_fin", () -> BlockEntityType.Builder.of(
+                    AttitudeFinBlockEntity::new,
+                    PRBlocks.ATTITUDE_FIN.get()
             ).build(null));
 
     private PRBlockEntities() {

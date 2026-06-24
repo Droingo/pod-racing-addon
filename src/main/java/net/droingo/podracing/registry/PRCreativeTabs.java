@@ -20,9 +20,10 @@ public final class PRCreativeTabs {
                         output.accept(PRItems.BINDER_MOUNT.get());
                         output.accept(PRItems.HOVER_REPULSOR.get());
                         output.accept(PRItems.AIR_BRAKE.get());
-                        output.accept(PRItems.POD_RACE_TROPHY.get());
                         output.accept(PRItems.POD_STABILIZER.get());
                         output.accept(PRItems.ROLL_TEST_THRUSTER.get());
+                        output.accept(PRItems.POD_CONTROL_CORE.get());
+                        output.accept(PRItems.ATTITUDE_FIN.get());
                     })
                     .build()
             );

@@ -1,6 +1,7 @@
 package net.droingo.podracing.network.payload;
 
 import net.droingo.podracing.PodRacingAddon;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -10,7 +11,9 @@ public record UpdatePilotInputPayload(
         boolean active,
         float pitch,
         float roll,
-        float yaw
+        float yaw,
+        boolean hasControlCore,
+        BlockPos controlCorePos
 ) implements CustomPacketPayload {
     public static final Type<UpdatePilotInputPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(
@@ -32,14 +35,28 @@ public record UpdatePilotInputPayload(
         buffer.writeFloat(payload.pitch);
         buffer.writeFloat(payload.roll);
         buffer.writeFloat(payload.yaw);
+        buffer.writeBoolean(payload.hasControlCore);
+
+        if (payload.hasControlCore) {
+            buffer.writeBlockPos(payload.controlCorePos);
+        }
     }
 
     private static UpdatePilotInputPayload read(RegistryFriendlyByteBuf buffer) {
+        boolean active = buffer.readBoolean();
+        float pitch = buffer.readFloat();
+        float roll = buffer.readFloat();
+        float yaw = buffer.readFloat();
+        boolean hasControlCore = buffer.readBoolean();
+        BlockPos controlCorePos = hasControlCore ? buffer.readBlockPos() : BlockPos.ZERO;
+
         return new UpdatePilotInputPayload(
-                buffer.readBoolean(),
-                buffer.readFloat(),
-                buffer.readFloat(),
-                buffer.readFloat()
+                active,
+                pitch,
+                roll,
+                yaw,
+                hasControlCore,
+                controlCorePos
         );
     }
 }

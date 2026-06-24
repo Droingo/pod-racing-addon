@@ -1,5 +1,6 @@
 package net.droingo.podracing.content.pilot;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
@@ -18,7 +19,15 @@ public final class PodPilotInputState {
     private PodPilotInputState() {
     }
 
-    public static void updateFromPlayer(ServerPlayer player, boolean active, float pitch, float roll, float yaw) {
+    public static void updateFromPlayer(
+            ServerPlayer player,
+            boolean active,
+            float pitch,
+            float roll,
+            float yaw,
+            BlockPos controlCorePos,
+            UUID controlFrequency
+    ) {
         if (!active) {
             COMMANDS.remove(player.getUUID());
             return;
@@ -35,11 +44,52 @@ public final class PodPilotInputState {
                 pitch,
                 roll,
                 yaw,
+                controlCorePos,
+                controlFrequency,
                 player.level().getGameTime()
         ));
     }
 
+    /*
+     * Prototype fallback used by old test thrusters.
+     */
     public static Command findLatestCommand(Level level) {
+        return findLatestCommand(level, null, false);
+    }
+
+    /*
+     * Frequency-safe command lookup used by Attitude Fins.
+     */
+    public static Command findLatestCommand(Level level, UUID requiredFrequency) {
+        if (requiredFrequency == null) {
+            return null;
+        }
+
+        return findLatestCommand(level, requiredFrequency, true);
+    }
+
+    public static Command findCommandForPlayer(Level level, UUID playerId) {
+        long now = level.getGameTime();
+
+        Command command = COMMANDS.get(playerId);
+
+        if (command == null) {
+            return null;
+        }
+
+        if (now - command.gameTime() > MAX_INPUT_AGE_TICKS) {
+            COMMANDS.remove(playerId);
+            return null;
+        }
+
+        if (!command.dimension().equals(level.dimension())) {
+            return null;
+        }
+
+        return command;
+    }
+
+    private static Command findLatestCommand(Level level, UUID requiredFrequency, boolean frequencyRequired) {
         long now = level.getGameTime();
         ResourceKey<Level> dimension = level.dimension();
 
@@ -58,6 +108,16 @@ public final class PodPilotInputState {
 
             if (!command.dimension().equals(dimension)) {
                 continue;
+            }
+
+            if (frequencyRequired) {
+                if (command.controlFrequency() == null) {
+                    continue;
+                }
+
+                if (!command.controlFrequency().equals(requiredFrequency)) {
+                    continue;
+                }
             }
 
             if (newest == null || command.gameTime() > newest.gameTime()) {
@@ -87,6 +147,8 @@ public final class PodPilotInputState {
             float pitch,
             float roll,
             float yaw,
+            BlockPos controlCorePos,
+            UUID controlFrequency,
             long gameTime
     ) {
     }

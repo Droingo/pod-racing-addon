@@ -1,0 +1,85 @@
+{
+	"format_version": "1.9.0",
+	"credit": "Made with Blockbench",
+	"texture_size": [64, 64],
+	"textures": {
+		"0": "pod_racing_addon:block/pod_control_core",
+		"particle": "pod_racing_addon:block/pod_control_core"
+	},
+	"elements": [
+		{
+			"from": [7.5, 5, 4],
+			"to": [8.5, 6, 10],
+			"rotation": {"angle": 0, "axis": "y", "origin": [8, 6, 4]},
+			"faces": {
+				"north": {"uv": [3.75, 12.75, 4, 13], "texture": "#0"},
+				"east": {"uv": [2.25, 11.75, 3.75, 12], "texture": "#0"},
+				"south": {"uv": [12.75, 3.75, 13, 4], "texture": "#0"},
+				"west": {"uv": [2.25, 12, 3.75, 12.25], "texture": "#0"},
+				"up": {"uv": [4.5, 14, 4.25, 12.5], "texture": "#0"},
+				"down": {"uv": [4.75, 12.5, 4.5, 14], "texture": "#0"}
+			}
+		},
+		{
+			"from": [3.5, 5, 3],
+			"to": [12.5, 7, 4],
+			"rotation": {"angle": 0, "axis": "y", "origin": [8, 6, 4]},
+			"faces": {
+				"north": {"uv": [6.75, 9.75, 9, 10.25], "texture": "#0"},
+				"east": {"uv": [3.75, 11.75, 4, 12.25], "texture": "#0"},
+				"south": {"uv": [0, 11.75, 2.25, 12.25], "texture": "#0"},
+				"west": {"uv": [0, 12.75, 0.25, 13.25], "texture": "#0"},
+				"up": {"uv": [9, 10.5, 6.75, 10.25], "texture": "#0"},
+				"down": {"uv": [10.75, 12, 8.5, 12.25], "texture": "#0"}
+			}
+		},
+		{
+			"from": [3.5, 7, 3],
+			"to": [5.5, 9, 4],
+			"rotation": {"angle": 0, "axis": "y", "origin": [8, 6, 4]},
+			"faces": {
+				"north": {"uv": [8.5, 8, 9, 8.5], "texture": "#0"},
+				"east": {"uv": [12.75, 0, 13, 0.5], "texture": "#0"},
+				"south": {"uv": [9, 8, 9.5, 8.5], "texture": "#0"},
+				"west": {"uv": [0.25, 12.75, 0.5, 13.25], "texture": "#0"},
+				"up": {"uv": [1, 13, 0.5, 12.75], "texture": "#0"},
+				"down": {"uv": [13.25, 0.5, 12.75, 0.75], "texture": "#0"}
+			}
+		},
+		{
+			"from": [10.5, 7, 3],
+			"to": [12.5, 9, 4],
+			"rotation": {"angle": 0, "axis": "y", "origin": [8, 6, 4]},
+			"faces": {
+				"north": {"uv": [9, 9.75, 9.5, 10.25], "texture": "#0"},
+				"east": {"uv": [12.75, 0.75, 13, 1.25], "texture": "#0"},
+				"south": {"uv": [12.5, 10, 13, 10.5], "texture": "#0"},
+				"west": {"uv": [1, 12.75, 1.25, 13.25], "texture": "#0"},
+				"up": {"uv": [1.75, 13, 1.25, 12.75], "texture": "#0"},
+				"down": {"uv": [13.25, 1.25, 12.75, 1.5], "texture": "#0"}
+			}
+		},
+		{
+			"from": [7, 5, 2],
+			"to": [9, 7, 3],
+			"rotation": {"angle": 0, "axis": "y", "origin": [8, 6, 4]},
+			"faces": {
+				"north": {"uv": [11.5, 12.5, 12, 13], "texture": "#0"},
+				"east": {"uv": [12.75, 1.5, 13, 2], "texture": "#0"},
+				"south": {"uv": [12, 12.5, 12.5, 13], "texture": "#0"},
+				"west": {"uv": [1.75, 12.75, 2, 13.25], "texture": "#0"},
+				"up": {"uv": [2.5, 13, 2, 12.75], "texture": "#0"},
+				"down": {"uv": [13.25, 2, 12.75, 2.25], "texture": "#0"}
+			}
+		}
+	],
+	"groups": [
+		{
+			"name": "Yoke",
+			"origin": [8, 8, 8],
+			"scope": 0,
+			"color": 0,
+			"children": [0, 1, 2, 3, 4]
+		}
+	]
+}

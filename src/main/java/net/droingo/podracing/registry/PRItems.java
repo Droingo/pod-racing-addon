@@ -32,6 +32,11 @@ public final class PRItems {
     public static final DeferredItem<BlockItem> ROLL_TEST_THRUSTER =
             ITEMS.registerSimpleBlockItem(PRBlocks.ROLL_TEST_THRUSTER);
 
+    public static final DeferredItem<BlockItem> POD_CONTROL_CORE =
+            ITEMS.registerSimpleBlockItem(PRBlocks.POD_CONTROL_CORE);
+    public static final DeferredItem<BlockItem> ATTITUDE_FIN =
+            ITEMS.registerSimpleBlockItem(PRBlocks.ATTITUDE_FIN);
+
     private PRItems() {
     }
 
