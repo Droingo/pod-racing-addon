@@ -20,6 +20,7 @@ import org.lwjgl.glfw.GLFW;
         value = Dist.CLIENT
 )
 public final class PodPilotClient {
+    private static final float ROLL_TO_YAW_MIX = 0.25F;
     private static final String CATEGORY = "key.categories.pod_racing_addon";
 
     private static final KeyMapping TOGGLE_PILOT = new KeyMapping(
@@ -99,12 +100,12 @@ public final class PodPilotClient {
             long window = minecraft.getWindow().getWindow();
 
             if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_Q) == GLFW.GLFW_PRESS) {
-                yaw -= 1.0F;
-            }
+            yaw += 1.0F;
+        }
 
             if (GLFW.glfwGetKey(window, GLFW.GLFW_KEY_R) == GLFW.GLFW_PRESS) {
-                yaw += 1.0F;
-            }
+            yaw -= 1.0F;
+        }
         }
 
         if (sendCooldown > 0) {
@@ -168,6 +169,8 @@ public final class PodPilotClient {
             return;
         }
 
+        float mixedYaw = clampAxis(yaw - roll * ROLL_TO_YAW_MIX);
+
         PacketDistributor.sendToServer(new UpdatePilotInputPayload(
                 pilotActive,
                 pitch,
@@ -197,5 +200,17 @@ public final class PodPilotClient {
         public static void registerKeyMappings(RegisterKeyMappingsEvent event) {
             event.register(TOGGLE_PILOT);
         }
+    }
+
+    private static float clampAxis(float value) {
+        if (value < -1.0F) {
+            return -1.0F;
+        }
+
+        if (value > 1.0F) {
+            return 1.0F;
+        }
+
+        return value;
     }
 }
