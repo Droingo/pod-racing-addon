@@ -20,7 +20,7 @@ import org.lwjgl.glfw.GLFW;
         value = Dist.CLIENT
 )
 public final class PodPilotClient {
-    private static final float ROLL_TO_YAW_MIX = 0.25F;
+    private static final float ROLL_TO_YAW_MIX = 0.35F;
     private static final String CATEGORY = "key.categories.pod_racing_addon";
 
     private static final KeyMapping TOGGLE_PILOT = new KeyMapping(
@@ -183,7 +183,7 @@ public final class PodPilotClient {
         lastSentActive = pilotActive;
         lastSentPitch = pitch;
         lastSentRoll = roll;
-        lastSentYaw = yaw;
+        lastSentYaw = mixedYaw;
         sendCooldown = 4;
     }
 
